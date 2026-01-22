@@ -357,9 +357,89 @@
             from { transform: rotate(0deg); }
             to { transform: rotate(360deg); }
         }
+
+        /* Avatar and Photo Gallery */
+        #photo-upload {
+            display: none;
+        }
+
+        #avatar-btn {
+            background: transparent;
+            border: 2px solid var(--term-green);
+            color: var(--term-green);
+            font-family: var(--font-stack);
+            font-size: 12px;
+            padding: 8px 14px;
+            cursor: pointer;
+            text-shadow: var(--term-glow);
+            font-weight: bold;
+            text-transform: uppercase;
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            letter-spacing: 1px;
+            box-shadow: inset 0 0 10px rgba(0, 255, 0, 0.1);
+            margin-left: 5px;
+        }
+
+        #avatar-btn:hover {
+            background-color: rgba(0, 255, 0, 0.1);
+            box-shadow: 0 0 15px var(--term-glow), inset 0 0 15px rgba(0, 255, 0, 0.2);
+            transform: scale(1.05);
+        }
+
+        #avatar-btn:active {
+            transform: scale(0.95);
+        }
+
+        .avatar-preview {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            border: 1px solid var(--term-green);
+            object-fit: cover;
+            box-shadow: 0 0 5px rgba(0, 255, 0, 0.5);
+            margin-right: 8px;
+            vertical-align: middle;
+        }
+
+        .user-avatar {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            border: 1px solid var(--term-green);
+            object-fit: cover;
+            margin-right: 5px;
+            vertical-align: middle;
+            box-shadow: 0 0 3px rgba(0, 255, 0, 0.4);
+        }
+
+        #bg-photo {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            opacity: 0.08;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        /* Adjust screen to account for background */
+        #screen {
+            position: relative;
+            z-index: 1;
+        }
+
+        .input-area-wrapper {
+            position: relative;
+            z-index: 1;
+        }
     </style>
 </head>
 <body>
+
+    <img id="bg-photo" src="" alt="">
 
     <div class="header-title">
         <div class="title-text">
@@ -371,10 +451,12 @@
 
     <div id="screen"></div>
 
-    <div id="input-area">
+    <div id="input-area" class="input-area-wrapper">
         <span class="prompt">></span>
         <input type="text" id="msg-input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="RAŠYKITE ŽINUTĘ...">
         <button id="listen-btn">LISTEN</button>
+        <button id="avatar-btn">📸 AVATAR</button>
+        <input type="file" id="photo-upload" accept="image/*">
     </div>
 
     <audio id="radio-player"></audio>
@@ -391,11 +473,18 @@
         const radioPlayer = document.getElementById('radio-player');
         const statusDot = document.getElementById('status-dot');
         const userDisplay = document.getElementById('user-display');
+        const photoUpload = document.getElementById('photo-upload');
+        const avatarBtn = document.getElementById('avatar-btn');
+        const bgPhoto = document.getElementById('bg-photo');
         let client = null;
 
         // Radio streaming URL using playlist generator
         const RADIO_STREAM_URL = "http://uk4.internet-radio.com:8049/";
         let isPlaying = false;
+
+        // Avatar and Photo Gallery
+        let userAvatar = null; // Base64 encoded avatar
+        let userPhotos = []; // Array of photo data URLs
 
         // --- TYPEWRITER EFFECT ---
         function typeWriter(text, element, speed = 30) {
@@ -503,7 +592,14 @@
                     }, 1200);
 
                 } else if (payload.type === 'chat') {
-                    log(`<${payload.id}> ${payload.msg}`, 'stranger-msg');
+                    let msgHTML = `<${payload.id}> ${payload.msg}`;
+                    if (payload.avatar) {
+                        msgHTML = `<img src="${payload.avatar}" class="user-avatar" alt="${payload.id}"> <${payload.id}> ${payload.msg}`;
+                    }
+                    log(msgHTML, 'stranger-msg');
+                } else if (payload.type === 'avatar') {
+                    log(`NAUDOTOJAS ${payload.id} ATNAUJINO AVATAR.`, 'system-msg');
+                    localStorage.setItem('userAvatar_' + payload.id, payload.avatar);
                 }
             } catch (e) { console.error(e); }
         }
@@ -526,8 +622,24 @@
         function sendMessage() {
             const text = input.value.trim();
             if (text && client && client.isConnected()) {
-                log(`<${userID}> ${text}`, 'system-msg');
-                const message = new Paho.MQTT.Message(JSON.stringify({ type: 'chat', id: userID, msg: text }));
+                let msgHTML = `<${userID}> ${text}`;
+                if (userAvatar) {
+                    msgHTML = `<img src="${userAvatar}" class="user-avatar" alt="${userID}"> <${userID}> ${text}`;
+                }
+                log(msgHTML, 'system-msg');
+                
+                const messageData = {
+                    type: 'chat',
+                    id: userID,
+                    msg: text
+                };
+                
+                // Include avatar if available
+                if (userAvatar) {
+                    messageData.avatar = userAvatar;
+                }
+                
+                const message = new Paho.MQTT.Message(JSON.stringify(messageData));
                 message.destinationName = TOPIC;
                 client.send(message);
                 input.value = '';
@@ -594,7 +706,84 @@
             console.error('Radio error:', errorName);
         });
 
-        window.onload = bootSystem;
+        // --- AVATAR AND PHOTO GALLERY ---
+        function loadAvatarFromStorage() {
+            const stored = localStorage.getItem('userAvatar_' + userID);
+            if (stored) {
+                userAvatar = stored;
+                bgPhoto.src = userAvatar;
+                log("NUOTRAUKA ĮKRAUTA IŠ SAUGYKLOS.", 'system-msg');
+            }
+        }
+
+        function createAvatarFromPhoto(dataUrl) {
+            // Create a circular avatar from the photo using canvas
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = 200;
+            canvas.height = 200;
+
+            const img = new Image();
+            img.onload = function() {
+                // Draw circular avatar
+                ctx.beginPath();
+                ctx.arc(100, 100, 100, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.clip();
+                
+                // Calculate dimensions to fill circle
+                const scale = Math.max(canvas.width / img.width, canvas.height / img.height);
+                const x = (canvas.width / 2) - (img.width / 2) * scale;
+                const y = (canvas.height / 2) - (img.height / 2) * scale;
+                
+                ctx.drawImage(img, x, y, img.width * scale, img.height * scale);
+                
+                // Get avatar as data URL
+                userAvatar = canvas.toDataURL('image/png');
+                localStorage.setItem('userAvatar_' + userID, userAvatar);
+                bgPhoto.src = userAvatar;
+                
+                log("AVATAR SUKURTAS IR IŠSAUGOTAS.", 'greeting-msg');
+                flashNotification();
+            };
+            img.src = dataUrl;
+        }
+
+        avatarBtn.addEventListener('click', function() {
+            photoUpload.click();
+        });
+
+        photoUpload.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    const photoDataUrl = event.target.result;
+                    userPhotos.push(photoDataUrl);
+                    
+                    // Create avatar from photo
+                    createAvatarFromPhoto(photoDataUrl);
+                    log("NUOTRAUKA PRIDĖTA: " + file.name, 'system-msg');
+                    
+                    // Send avatar to other users
+                    if (client && client.isConnected()) {
+                        const avatarMsg = new Paho.MQTT.Message(JSON.stringify({
+                            type: 'avatar',
+                            id: userID,
+                            avatar: userAvatar
+                        }));
+                        avatarMsg.destinationName = TOPIC;
+                        client.send(avatarMsg);
+                    }
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        window.onload = function() {
+            loadAvatarFromStorage();
+            bootSystem();
+        };
 
         // --- PWA SERVICE WORKER REGISTRATION ---
         if ('serviceWorker' in navigator) {
