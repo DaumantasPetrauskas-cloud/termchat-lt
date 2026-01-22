@@ -394,7 +394,7 @@
         let client = null;
 
         // Radio streaming URL using playlist generator
-        const RADIO_STREAM = "https://www.internet-radio.com/servers/tools/playlistgenerator/?u=http://uk4.internet-radio.com:8049/listen.pls&t=.m3u";
+        const RADIO_STREAM_URL = "http://uk4.internet-radio.com:8049/";
         let isPlaying = false;
 
         // --- TYPEWRITER EFFECT ---
@@ -551,32 +551,28 @@
                 listenBtn.textContent = 'CONNECTING...';
                 listenBtn.disabled = true;
                 
-                radioPlayer.src = RADIO_STREAM;
-                radioPlayer.type = "audio/mpeg";
+                radioPlayer.src = RADIO_STREAM_URL;
                 radioPlayer.crossOrigin = "anonymous";
-                radioPlayer.preload = "metadata";
                 
-                setTimeout(() => {
-                    const playPromise = radioPlayer.play();
-                    
-                    if (playPromise !== undefined) {
-                        playPromise
-                            .then(() => {
-                                listenBtn.classList.add('playing');
-                                listenBtn.textContent = 'STOP ⏸';
-                                listenBtn.disabled = false;
-                                isPlaying = true;
-                                log("RADIJAS GROJA ♫ UK RADIO", 'greeting-msg');
-                            })
-                            .catch(err => {
-                                log("RADIJO KLAIDA: " + err.name, 'error-msg');
-                                listenBtn.textContent = 'LISTEN';
-                                listenBtn.disabled = false;
-                                isPlaying = false;
-                                console.error('Radio error:', err);
-                            });
-                    }
-                }, 100);
+                const playPromise = radioPlayer.play();
+                
+                if (playPromise !== undefined) {
+                    playPromise
+                        .then(() => {
+                            listenBtn.classList.add('playing');
+                            listenBtn.textContent = 'STOP ⏸';
+                            listenBtn.disabled = false;
+                            isPlaying = true;
+                            log("RADIJAS GROJA ♫ UK RADIO STREAM", 'greeting-msg');
+                        })
+                        .catch(err => {
+                            log("RADIJO KLAIDA: " + err.name + " (" + err.code + ")", 'error-msg');
+                            listenBtn.textContent = 'LISTEN';
+                            listenBtn.disabled = false;
+                            isPlaying = false;
+                            console.error('Radio playback error:', err);
+                        });
+                }
             }
         });
 
