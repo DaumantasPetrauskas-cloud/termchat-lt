@@ -394,8 +394,8 @@
         let client = null;
 
         // Radio streaming URL (online radio)
-        // Using a public radio station that supports browser streaming
-        const RADIO_STREAM = "https://media-ssl.musicradio.com/CapitalFM";
+        // Using SomaFM - known to work with browsers
+        const RADIO_STREAM = "http://stream.somafm.com/groovesalad128.m3u";
         let isPlaying = false;
 
         // --- TYPEWRITER EFFECT ---
@@ -556,9 +556,9 @@
                 radioPlayer.src = RADIO_STREAM;
                 radioPlayer.type = "audio/mpeg";
                 radioPlayer.crossOrigin = "anonymous";
-                radioPlayer.preload = "none";
+                radioPlayer.preload = "metadata";
                 
-                // Create a small delay to ensure browser is ready
+                // Try with a small delay
                 setTimeout(() => {
                     const playPromise = radioPlayer.play();
                     
@@ -569,46 +569,55 @@
                                 listenBtn.textContent = 'STOP ⏸';
                                 listenBtn.disabled = false;
                                 isPlaying = true;
-                                log("RADIJAS GROJA ♫ UK RADIO", 'greeting-msg');
+                                log("RADIJAS GROJA ♫ SOMA FM", 'greeting-msg');
                             })
                             .catch(err => {
-                                log("RADIJO KLAIDA: " + err.name + " - " + err.message, 'error-msg');
-                                listenBtn.textContent = 'LISTEN';
-                                listenBtn.disabled = false;
-                                isPlaying = false;
-                                console.error('Radio play error:', err);
+                                log("RADIJO KLAIDA: " + err.name, 'error-msg');
+                                log("BANDOMAS PROXY SRAUTAS...", 'system-msg');
+                                
+                                // Try with CORS proxy
+                                radioPlayer.src = "https://cors-anywhere.herokuapp.com/" + RADIO_STREAM;
+                                radioPlayer.play().catch(err2 => {
+                                    log("RADIJO NEPAVYKO. PRAŠOME PASITIKRINTI INTERNETO RYŠĮ", 'error-msg');
+                                    listenBtn.textContent = 'LISTEN';
+                                    listenBtn.disabled = false;
+                                    isPlaying = false;
+                                });
                             });
                     }
-                }, 200);
+                }, 100);
             }
         });
 
         // Handle audio player events
         radioPlayer.addEventListener('play', () => {
-            console.log('Radio playing');
-        });
-
-        radioPlayer.addEventListener('pause', () => {
-            console.log('Radio paused');
+            console.log('Radio started playing');
         });
 
         radioPlayer.addEventListener('error', (e) => {
-            const errorMsg = radioPlayer.error ? 
-                `Error code: ${radioPlayer.error.code}` : 'Unknown error';
-            log("RADIJO SRAUTAS KLAIDA: " + errorMsg, 'error-msg');
+            const errorCodes = {
+                1: 'MEDIA_ERR_ABORTED',
+                2: 'MEDIA_ERR_NETWORK',
+                3: 'MEDIA_ERR_DECODE',
+                4: 'MEDIA_ERR_SRC_NOT_SUPPORTED'
+            };
+            const errorCode = radioPlayer.error ? radioPlayer.error.code : 'unknown';
+            const errorName = errorCodes[errorCode] || 'Unknown Error';
+            
+            log("RADIJO KLAIDA: " + errorName + " (" + errorCode + ")", 'error-msg');
             listenBtn.classList.remove('playing');
             listenBtn.textContent = 'LISTEN';
             listenBtn.disabled = false;
             isPlaying = false;
-            console.error('Radio error event:', e, radioPlayer.error);
+            console.error('Radio error:', errorName, radioPlayer.error);
         });
 
-        radioPlayer.addEventListener('stalled', () => {
-            log("RADIJO SRAUTAS LAUKIAMA DUOMENŲ...", 'system-msg');
+        radioPlayer.addEventListener('loadstart', () => {
+            log("RADIJO KRAUNASI...", 'system-msg');
         });
 
         radioPlayer.addEventListener('canplay', () => {
-            log("RADIJO SRAUTAS GATA", 'system-msg');
+            log("RADIJO PARUOŠTAS GROJIMUI ✓", 'system-msg');
         });
 
         window.onload = bootSystem;
