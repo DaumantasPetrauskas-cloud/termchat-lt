@@ -545,6 +545,8 @@
 
         // Radio streaming URLs - Multiple formats for UK stations
         const RADIO_STREAMS = [
+            // Player format (primary)
+            "http://player.internet-radio.com/?server=uk7.internet-radio.com:8000",
             // UK2 Direct Streams
             "http://uk2.internet-radio.com:8024/",
             "http://uk2.internet-radio.com:8024/stream",
@@ -554,8 +556,8 @@
             "http://uk7.internet-radio.com:8000/stream",
             "http://uk7.internet-radio.com:8000/",
             // CORS Proxy alternatives
-            "https://cors-anywhere.herokuapp.com/http://uk2.internet-radio.com:8024/",
-            "https://api.allorigins.win/raw?url=http://uk2.internet-radio.com:8024/"
+            "https://cors-anywhere.herokuapp.com/http://uk7.internet-radio.com:8000/",
+            "https://api.allorigins.win/raw?url=http://uk7.internet-radio.com:8000/"
         ];
         let currentStreamIndex = 0;
         const RADIO_STATION_NAME = "LIVE - movedahouse.com";
