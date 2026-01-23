@@ -576,6 +576,13 @@
         // Avatar and Photo Gallery
         let userAvatar = null; // Base64 encoded avatar
         let userPhotos = []; // Array of photo data URLs
+        
+        // User management
+        let connectedUsers = new Set();
+        let messageQueue = [];
+        const MAX_MESSAGES = 100;
+        let reconnectAttempts = 0;
+        const MAX_RECONNECT_ATTEMPTS = 5;
 
         // --- TYPEWRITER EFFECT ---
         function typeWriter(text, element, speed = 30) {
@@ -636,6 +643,7 @@
             log("SISTEMA PRIJUNGTA.", 'system-msg');
             log(`NAUDOTOJAS: ${userID}`, 'system-msg');
             statusDot.classList.remove('offline');
+            reconnectAttempts = 0;
             client.subscribe(TOPIC);
             input.focus();
 
@@ -646,8 +654,13 @@
         }
 
         function onFailure(responseObject) {
-            log("KLAIDA: " + responseObject.errorMessage, 'error-msg');
-            setTimeout(initMQTT, 3000);
+            log("KLAIDA: " + (responseObject.errorMessage || 'Nežinoma klaida'), 'error-msg');
+            reconnectAttempts++;
+            if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+                setTimeout(initMQTT, 3000 * reconnectAttempts);
+            } else {
+                log("NEPAVYKO PRISIJUNGTI. PERKRAUKITE PUSLAPĮ.", 'error-msg');
+            }
         }
 
         function onConnectionLost(responseObject) {
@@ -661,38 +674,55 @@
         function onMessageArrived(message) {
             try {
                 const payload = JSON.parse(message.payloadString);
-                if (payload.id === userID) return;
+                if (!payload || !payload.id || payload.id === userID) return;
 
+                // Prevent duplicate user notifications
                 if (payload.type === 'join') {
-                    // NOTIFICATION & GREETING LOGIC
+                    if (connectedUsers.has(payload.id)) return;
+                    connectedUsers.add(payload.id);
+                    
                     flashNotification();
                     log(`NAUJAS NAUDOTOJAS: ${payload.id}`, 'system-msg');
 
-                    // Automated Greeting Sequence
+                    // Simplified greeting - no auto-fill to prevent conflicts
                     setTimeout(() => {
-                        log(`SISTEMA: SIUNČIAMAS PASISVEIKINIMAS...`, 'system-msg');
-                    }, 500);
-
-                    setTimeout(() => {
-                        // Lithuanian Greetings
                         log(`PASISVEIKINIMAS: LABAS / HI / HELLO`, 'greeting-msg');
-                        log(`UŽKLAUSA: PASIKALBAM? PAŠNEKĖKIM?`, 'greeting-msg');
-
-                        // Helper: Auto-fill "LABAS!" in Lithuanian
-                        input.value = "LABAS!";
-                    }, 1200);
+                    }, 800);
 
                 } else if (payload.type === 'chat') {
-                    let msgHTML = `<${payload.id}> ${payload.msg}`;
-                    if (payload.avatar) {
-                        msgHTML = `<img src="${payload.avatar}" class="user-avatar" alt="${payload.id}"> <${payload.id}> ${payload.msg}`;
+                    // Sanitize message content
+                    const sanitizedMsg = payload.msg ? payload.msg.substring(0, 500) : '';
+                    let msgHTML = `<${payload.id}> ${sanitizedMsg}`;
+                    if (payload.avatar && payload.avatar.startsWith('data:image/')) {
+                        msgHTML = `<img src="${payload.avatar}" class="user-avatar" alt="${payload.id}"> <${payload.id}> ${sanitizedMsg}`;
                     }
                     log(msgHTML, 'stranger-msg');
+                    
                 } else if (payload.type === 'avatar') {
-                    log(`NAUDOTOJAS ${payload.id} ATNAUJINO AVATAR.`, 'system-msg');
-                    localStorage.setItem('userAvatar_' + payload.id, payload.avatar);
+                    if (payload.avatar && payload.avatar.startsWith('data:image/')) {
+                        log(`NAUDOTOJAS ${payload.id} ATNAUJINO AVATAR.`, 'system-msg');
+                        localStorage.setItem('userAvatar_' + payload.id, payload.avatar);
+                    }
+                } else if (payload.type === 'leave') {
+                    connectedUsers.delete(payload.id);
+                    log(`NAUDOTOJAS ATSIJUNGĖ: ${payload.id}`, 'system-msg');
                 }
-            } catch (e) { console.error(e); }
+                
+                // Limit message history to prevent memory issues
+                limitMessages();
+                
+            } catch (e) { 
+                console.error('Message parsing error:', e);
+            }
+        }
+
+        function limitMessages() {
+            const messages = screen.querySelectorAll('.log-entry');
+            if (messages.length > MAX_MESSAGES) {
+                for (let i = 0; i < messages.length - MAX_MESSAGES; i++) {
+                    messages[i].remove();
+                }
+            }
         }
 
         function log(text, type = 'user-msg') {
@@ -712,7 +742,7 @@
 
         function sendMessage() {
             const text = input.value.trim();
-            if (text && client && client.isConnected()) {
+            if (text && client && client.isConnected() && text.length <= 500) {
                 let msgHTML = `<${userID}> ${text}`;
                 if (userAvatar) {
                     msgHTML = `<img src="${userAvatar}" class="user-avatar" alt="${userID}"> <${userID}> ${text}`;
@@ -726,13 +756,17 @@
                 };
                 
                 // Include avatar if available
-                if (userAvatar) {
+                if (userAvatar && userAvatar.startsWith('data:image/')) {
                     messageData.avatar = userAvatar;
                 }
                 
-                const message = new Paho.MQTT.Message(JSON.stringify(messageData));
-                message.destinationName = TOPIC;
-                client.send(message);
+                try {
+                    const message = new Paho.MQTT.Message(JSON.stringify(messageData));
+                    message.destinationName = TOPIC;
+                    client.send(message);
+                } catch (e) {
+                    log("KLAIDA SIUNČIANT ŽINUTĘ", 'error-msg');
+                }
                 input.value = '';
             }
         }
@@ -895,6 +929,15 @@
         window.onload = function() {
             document.getElementById('username-input').focus();
         };
+
+        // Send leave message when user closes/refreshes page
+        window.addEventListener('beforeunload', function() {
+            if (client && client.isConnected()) {
+                const leaveMsg = new Paho.MQTT.Message(JSON.stringify({ type: 'leave', id: userID }));
+                leaveMsg.destinationName = TOPIC;
+                client.send(leaveMsg);
+            }
+        });
 
         // --- PWA SERVICE WORKER REGISTRATION ---
         if ('serviceWorker' in navigator) {
