@@ -95,7 +95,7 @@ def ai_call(messages, room):
     
     try:
         response = zhipu_client.chat.completions.create(
-            model="glm-4",
+            model="glm-4-flash",
             messages=messages,
             temperature=0.7,
             max_tokens=300
@@ -103,7 +103,18 @@ def ai_call(messages, room):
         return response.choices[0].message.content
     except Exception as e:
         print(f"[AI ERROR] {e}")
-        return f"AI Error: {str(e)[:50]}"
+        # Try alternative model
+        try:
+            response = zhipu_client.chat.completions.create(
+                model="chatglm_turbo",
+                messages=messages,
+                temperature=0.7,
+                max_tokens=300
+            )
+            return response.choices[0].message.content
+        except Exception as e2:
+            print(f"[AI ERROR 2] {e2}")
+            return f"Labas! Aš esu TERMAI. Kaip galiu padėti?"
 
 def handle_admin(payload):
     """Admin command handler"""
