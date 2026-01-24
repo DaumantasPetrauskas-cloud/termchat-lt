@@ -1,68 +1,129 @@
-# TermChat LT 🌍
+# TermOS LT 🌌
 
-A terminal-style real-time chat application with multilingual AI assistant built with MQTT, featuring retro aesthetics and global language support.
+A revolutionary multiverse operating system with AI assistant, gamification, and extensible plugin architecture. Built with MQTT for real-time collaboration.
 
-## Features
+## 🚀 Features
 
-✨ **Real-time Chat** - Connect with users worldwide via MQTT protocol  
-🤖 **Multilingual AI Assistant** - TERMAI responds in English, Lithuanian, and more  
-🎨 **Retro Terminal UI** - Green phosphor CRT-style interface with typewriter effects  
-📻 **Radio Streaming** - Listen to online radio while chatting  
-📱 **Progressive Web App** - Install as native app on mobile and desktop  
-🌐 **No Installation Required** - Works in any modern web browser  
-🌍 **Multilingual Support** - AI responds in user's language automatically
+✨ **Multiverse Chat** - Navigate between themed rooms with specialized AI personalities  
+🤖 **Agentic AI Assistant** - TERMAI performs real actions, not just text responses  
+🎮 **Gamification System** - Level up, unlock avatars, earn XP for activities  
+🔌 **Plugin Ecosystem** - Extend the platform with custom Python scripts  
+📱 **Progressive Web App** - Install as native app with offline support  
+🎨 **Retro Terminal UI** - Green phosphor CRT aesthetics with ASCII avatars  
+🗣️ **Voice Interface** - Full duplex voice conversation with AI  
+🌍 **Multilingual Support** - Auto-detects and responds in user's language  
+🔗 **Viral Sharing** - Create and share custom rooms with friends
 
-## AI Assistant
+## 🤖 TERMAI - Agentic AI Assistant
 
-**TERMAI** is the built-in multilingual AI assistant that:
-- Responds to messages containing "ai" or "termai"
-- Answers questions ending with "?"
-- **Auto-detects language** and responds in English, Lithuanian, etc.
-- Uses Zhipu GLM-4 model with intelligent fallbacks
-- Maintains conversation context
-- Specialized personalities for different rooms
+**TERMAI** is an intelligent agent that:
+- 🎵 **Plays Music** - "Play some jazz" → Actually plays music
+- 🛠️ **Opens Panels** - "Open the game console" → Launches game interface
+- 🧠 **Remembers Everything** - Stores preferences in vector database
+- 🗣️ **Speaks Aloud** - Voice synthesis in detected language
+- 🔍 **Function Calls** - Executes real system functions, not just text
+- 🌍 **Multilingual** - Auto-detects and responds in English, Lithuanian, etc.
+- 🏠 **Room Personalities** - Different AI behavior per room
 
-## Live Demo
+## 🎮 Gamification & Progression
 
-🚀 **Try it now**: [https://dauptr.github.io/termchat-lt/](https://dauptr.github.io/termchat-lt/)
+**Level System**: Newbie → Apprentice → Coder → Hacker → Architect → Wizard → Master → Guru → Legend → Arch-Mage
 
-- Enter any username (3+ characters)
-- Chat with users worldwide
-- Ask TERMAI questions in English or Lithuanian
-- Experience retro terminal aesthetics
+**Earn XP for**:
+- 💬 Sending messages (+1 XP)
+- 🛠️ Creating apps (+50 XP)
+- 🎮 Starting games (+30 XP)
+- 🔗 Sharing rooms (+25 XP)
+- 🔌 Creating plugins (+100 XP)
 
-## Quick Start
+**Unlock ASCII Avatars**:
+```
+Level 3: Hacker    Level 5: Wizard    Level 8: Ninja
+  /\_/\              /\                 ◢◤
+ ( o.o )            /  \                o_o
+ =^.^=             \__/                /|\
+                   o_o                 / \
+                   /|\
+```
 
-1. Visit [https://dauptr.github.io/termchat-lt/](https://dauptr.github.io/termchat-lt/)
-2. Enter username
-3. Start chatting!
-4. Try: "Hello TERMAI" or "Labas TERMAI"
+## 🌌 Live Multiverse
 
-## Technical Architecture
+🚀 **Enter the Multiverse**: [https://dauptr.github.io/termchat-lt/](https://dauptr.github.io/termchat-lt/)
 
-### Frontend (index.html)
-- Pure HTML5/CSS3/JavaScript
-- MQTT WebSocket client (Paho)
-- No external AI dependencies
-- Sends messages, displays responses
+### 🏠 Explore Themed Rooms
+- 📚 **Library** - Learn with AI Librarian
+- 🎨 **Studio** - Create art, music, apps with AI Artist
+- 🛠️ **Workshop** - Code and build with AI Engineer
+- 🎭 **Lounge** - Play games with AI Entertainment Host
+- 🧠 **Think Tank** - Solve problems with AI Strategist
 
-### Backend (mqtt_service.py)
-- Python MQTT service
-- Zhipu GLM-4 AI integration
-- Conversation memory
-- Lithuanian language prompts
+### 🔌 Try These Commands
+```
+/share          - Create shareable room
+/stats          - View your level and XP
+/avatar         - Browse unlocked avatars
+/voice          - Start voice conversation
+/admin          - Upload custom plugins
+"Play music"    - AI plays actual music
+"Create app"    - AI builds working app
+"Start game"    - AI launches interactive game
+```
+
+## 🔌 Plugin Ecosystem
+
+**Create Custom Extensions** - Upload Python scripts to extend functionality
+
+### Example Plugin: Auto Greeter
+```python
+def handle_trigger(trigger_type, data):
+    if trigger_type == 'user_join':
+        return {
+            'action': 'send_message',
+            'message': f'Welcome {data["user_id"]}! 🎉',
+            'target': 'all'
+        }
+```
+
+### Security Features
+- 🔒 **RestrictedPython** - Compile-time security
+- 🐳 **Docker Sandboxing** - Runtime isolation
+- 🚫 **No Network Access** - Plugins run offline
+- ⏱️ **Resource Limits** - 128MB RAM, 10s timeout
+
+### Plugin Triggers
+- `user_join` - New user connects
+- `message` - User sends message
+- `room_change` - User switches rooms
+- `app_created` - User creates app
+- `game_started` - User starts game
+
+## 🎨 Technical Architecture
+
+### Frontend (Progressive Web App)
+- 📱 **PWA** - Installable with offline support
+- 🌐 **Pure Web** - HTML5/CSS3/JavaScript
+- 🔊 **Voice Interface** - Web Speech API integration
+- 🎮 **Gamification** - XP system with localStorage persistence
+- 🔗 **Room Sharing** - URL-based room joining
+- 🎨 **ASCII Avatars** - Retro terminal aesthetics
+
+### Backend (Agentic AI Service)
+- 🤖 **Function Calling** - AI performs real actions
+- 🧠 **Vector Memory** - ChromaDB for user preferences
+- 🔌 **Plugin System** - Docker-sandboxed Python execution
+- 🌍 **Multilingual** - Zhipu GLM-4 with language detection
+- 💾 **Database** - MongoDB for message persistence
+- 🔒 **Security** - Rate limiting, XSS protection, restricted execution
 
 ### Deployment
 - Frontend: Static hosting (GitHub Pages, Netlify)
 - Backend: Cloud service (Render, Heroku)
 - MQTT: Public broker (broker.emqx.io)
 
-## Setup & Configuration
-
 ### Environment Variables (.env)
 ```bash
 ZHIPU_API_KEY=your-zhipu-api-key
-AI_PROVIDER=zhipu
+MONGODB_URI=mongodb://localhost:27017/
 PORT=10000
 ```
 
@@ -71,39 +132,24 @@ PORT=10000
 # Install dependencies
 pip install -r requirements.txt
 
-# Start MQTT service
+# Start multiverse backend
 python mqtt_service.py
 
-# Start web server
+# Serve frontend (optional)
 python -m http.server 8000
 ```
 
-### Cloud Deployment
-1. **Backend**: Deploy mqtt_service.py to Render/Heroku
-2. **Frontend**: Deploy index.html to GitHub Pages/Netlify
-3. **Environment**: Set ZHIPU_API_KEY in cloud service
+### Production Deployment
+1. **Frontend**: Deploy to GitHub Pages/Netlify (static PWA)
+2. **Backend**: Deploy to Render/Heroku (Python service)
+3. **Database**: MongoDB Atlas for persistence
+4. **Docker**: Required for plugin system security
 
-## MQTT Configuration
+## 📊 System Status
 
-- **Broker**: broker.emqx.io:1883 (Python) / :8084 (WebSocket)
-- **Topic**: term-chat/global/v3
-- **Protocol**: MQTT v5 (Python) / WebSocket (Browser)
+- ✅ **TIER 1**: Production-grade PWA with persistence
+- ✅ **TIER 2**: Agentic AI with function calling
+- ✅ **TIER 3**: Viral growth with gamification
+- ✅ **TIER 4**: Plugin ecosystem with Docker security
 
-## AI Integration
-
-**Zhipu GLM-4 Model** with multilingual capabilities:
-- **Auto-language detection** - responds in user's language
-- **English & Lithuanian** optimized responses
-- Conversation context awareness
-- Trigger-based responses ("ai", "termai", "?")
-- Intelligent fallback system
-- Room-specific personalities
-
-**Example Interactions**:
-```
-User: "Hello TERMAI, who are you?"
-TERMAI: "Hello! I'm TERMAI, your AI assistant. How can I help you?"
-
-User: "Labas TERMAI, kas tu esi?"
-TERMAI: "Labas! Aš esu TERMAI - dirbtinio intelekto asistentas."
-```
+**TermOS LT is now a complete multiverse operating system ready for viral growth!** 🎆
