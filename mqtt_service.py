@@ -7,9 +7,18 @@ import threading
 import random
 import string
 import time
+from datetime import datetime
 from dotenv import load_dotenv
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 from zhipuai import ZhipuAI
+
+# Database imports (with fallback)
+try:
+    from pymongo import MongoClient
+    MONGODB_AVAILABLE = True
+except ImportError:
+    MONGODB_AVAILABLE = False
+    print("[WARNING] MongoDB not available - using memory storage")
 
 # Render compatibility
 if 'RENDER' in os.environ:
@@ -35,7 +44,21 @@ admin_token = ''.join(random.choices(string.ascii_uppercase + string.digits, k=8
 # Load Config with Render support
 load_dotenv()
 ZHIPU_API_KEY = os.getenv("ZHIPU_API_KEY")
+MONGODB_URI = os.getenv("MONGODB_URI", "mongodb://localhost:27017/")
 PORT = int(os.getenv("PORT", 10000))
+
+# Database setup
+db = None
+if MONGODB_AVAILABLE and MONGODB_URI:
+    try:
+        mongo_client = MongoClient(MONGODB_URI)
+        db = mongo_client.termchat
+        print("[DATABASE] MongoDB connected successfully")
+    except Exception as e:
+        print(f"[DATABASE] MongoDB connection failed: {e}")
+        db = None
+else:
+    print("[DATABASE] Using memory storage (messages will not persist)")
 
 # Render uses PORT environment variable
 if 'RENDER' in os.environ:
@@ -88,7 +111,38 @@ ROOM_PROMPTS = {
     "think_tank": """You are AI Strategist. Solve problems, generate ideas, plan projects. Analyze and suggest solutions. IMPORTANT: Respond in the same language as the user's message."""
 }
 
-def ai_call(messages, room):
+def save_message_to_db(room, user_id, message_text, msg_type="chat"):
+    """Save message to database with fallback to memory"""
+    message_doc = {
+        "room": room,
+        "user_id": user_id,
+        "message": message_text,
+        "type": msg_type,
+        "timestamp": datetime.now(),
+        "server_timestamp": time.time()
+    }
+    
+    if db:
+        try:
+            db.messages.insert_one(message_doc)
+            return True
+        except Exception as e:
+            print(f"[DATABASE] Failed to save message: {e}")
+    
+    # Fallback to memory (existing behavior)
+    return False
+
+def get_recent_messages(room, limit=50):
+    """Get recent messages from database"""
+    if db:
+        try:
+            messages = db.messages.find(
+                {"room": room}
+            ).sort("timestamp", -1).limit(limit)
+            return list(reversed(list(messages)))
+        except Exception as e:
+            print(f"[DATABASE] Failed to get messages: {e}")
+    return []
     """AI API call with room context"""
     if not zhipu_client:
         return get_fallback_response(messages)

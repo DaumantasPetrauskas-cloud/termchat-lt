@@ -3,6 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#33ff00">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="TermOS">
+    <link rel="manifest" href="./manifest.json">
+    <link rel="apple-touch-icon" href="./icon-192.svg">
     <title>TermChat LT</title>
     <style>
         :root {
@@ -283,6 +289,93 @@
         let mqttClient = null;
         let appData = null;
         let gameData = null;
+        let messageHistory = [];
+        let isOnline = navigator.onLine;
+
+        // PWA Service Worker Registration
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function() {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(function(registration) {
+                        console.log('SW registered: ', registration);
+                    })
+                    .catch(function(registrationError) {
+                        console.log('SW registration failed: ', registrationError);
+                    });
+            });
+        }
+
+        // Offline/Online detection
+        window.addEventListener('online', function() {
+            isOnline = true;
+            addMessage('SYSTEM', 'Connection restored - syncing messages...');
+            syncOfflineMessages();
+        });
+        
+        window.addEventListener('offline', function() {
+            isOnline = false;
+            addMessage('SYSTEM', 'Connection lost - messages will be queued');
+        });
+
+        // --- MESSAGE PERSISTENCE ---
+        function saveMessageToLocal(user, text, room = currentRoom) {
+            const message = {
+                id: Date.now() + Math.random(),
+                user: user,
+                text: text,
+                room: room,
+                timestamp: new Date().toISOString(),
+                synced: isOnline
+            };
+            
+            messageHistory.push(message);
+            
+            // Save to localStorage for persistence
+            try {
+                const stored = JSON.parse(localStorage.getItem('termchat_messages') || '[]');
+                stored.push(message);
+                // Keep only last 1000 messages
+                if (stored.length > 1000) stored.splice(0, stored.length - 1000);
+                localStorage.setItem('termchat_messages', JSON.stringify(stored));
+            } catch (e) {
+                console.warn('Failed to save message to localStorage:', e);
+            }
+        }
+        
+        function loadMessageHistory() {
+            try {
+                const stored = JSON.parse(localStorage.getItem('termchat_messages') || '[]');
+                const roomMessages = stored.filter(msg => msg.room === currentRoom);
+                const recent = roomMessages.slice(-50); // Show last 50 messages
+                
+                recent.forEach(msg => {
+                    const div = document.createElement('div');
+                    div.style.marginBottom = '5px';
+                    div.style.opacity = '0.7'; // Indicate historical message
+                    div.style.color = msg.user === 'TERMAI' ? '#00ff41' : 'var(--term-color)';
+                    div.textContent = `[${msg.user}] ${msg.text}`;
+                    document.getElementById('terminal-body').appendChild(div);
+                });
+                
+                if (recent.length > 0) {
+                    addMessage('SYSTEM', `Loaded ${recent.length} previous messages`);
+                }
+            } catch (e) {
+                console.warn('Failed to load message history:', e);
+            }
+        }
+        
+        function syncOfflineMessages() {
+            // Sync any unsynced messages when back online
+            const unsynced = messageHistory.filter(msg => !msg.synced);
+            unsynced.forEach(msg => {
+                if (mqttClient && mqttClient.isConnected()) {
+                    const payload = { user: msg.user, text: msg.text, timestamp: msg.timestamp };
+                    mqttClient.publish('termchat/messages', JSON.stringify(payload));
+                    msg.synced = true;
+                }
+            });
+        }
 
         // Boot sequence
         document.addEventListener('DOMContentLoaded', function() {
@@ -299,6 +392,10 @@
                 username = user;
                 document.getElementById('loginScreen').style.display = 'none';
                 document.getElementById('main-layout').style.display = 'grid';
+                
+                // Load message history first
+                loadMessageHistory();
+                
                 connectMQTT();
                 document.getElementById('chatInput').focus();
                 
@@ -672,6 +769,11 @@
             div.textContent = `[${user}] ${processedText}`;
             terminal.appendChild(div);
             terminal.scrollTop = terminal.scrollHeight;
+            
+            // Save to persistent storage (except system messages)
+            if (user !== 'SYSTEM' && user !== 'ERROR') {
+                saveMessageToLocal(user, processedText);
+            }
         }
 
         // --- TERMAI FUNCTIONS (Priority 3) ---
