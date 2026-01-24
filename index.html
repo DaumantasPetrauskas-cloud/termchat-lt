@@ -548,17 +548,109 @@
         <input type="text" id="msg-input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="RAŠYKITE ŽINUTĘ...">
         <button id="listen-btn">LISTEN</button>
         <button id="avatar-btn">📸 AVATAR</button>
+        <button id="voice-btn">🎤 VOICE</button>
+        <button id="video-btn">📹 VIDEO</button>
         <input type="file" id="photo-upload" accept="image/*">
+        <input type="file" id="audio-upload" accept="audio/*">
+        <input type="file" id="video-upload" accept="video/*">
     </div>
 
     <audio id="radio-player"></audio>
+    <audio id="tts-player"></audio>
+    <video id="video-player" style="display:none; max-width:100%; margin:10px 0;"></video>
+    <canvas id="ai-canvas" style="display:none; max-width:100%; margin:10px 0;"></canvas>
 
     <script>
-        // XSS Protection - HTML escape function
-        function escapeHtml(text) {
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
+        // Text-to-Speech for AI responses
+        function speakText(text) {
+            if ('speechSynthesis' in window) {
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.lang = 'lt-LT'; // Lithuanian
+                utterance.rate = 0.9;
+                utterance.pitch = 1.1;
+                speechSynthesis.speak(utterance);
+            }
+        }
+
+        // AI Graphics Generation
+        function generateAIGraphics(prompt) {
+            const canvas = aiCanvas;
+            const ctx = canvas.getContext('2d');
+            canvas.width = 400;
+            canvas.height = 300;
+            canvas.style.display = 'block';
+            
+            // Simple procedural graphics based on prompt
+            ctx.fillStyle = '#000000';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Generate based on keywords
+            if (prompt.includes('circle') || prompt.includes('apskritimas')) {
+                ctx.fillStyle = '#00ff00';
+                ctx.beginPath();
+                ctx.arc(200, 150, 80, 0, Math.PI * 2);
+                ctx.fill();
+            } else if (prompt.includes('square') || prompt.includes('kvadratas')) {
+                ctx.fillStyle = '#00ff00';
+                ctx.fillRect(150, 100, 100, 100);
+            } else {
+                // Default: animated pattern
+                for (let i = 0; i < 50; i++) {
+                    ctx.fillStyle = `hsl(${Math.random() * 360}, 70%, 50%)`;
+                    ctx.fillRect(Math.random() * canvas.width, Math.random() * canvas.height, 10, 10);
+                }
+            }
+            
+            log("AI GRAFIKA SUGENERUOTA ✨", 'greeting-msg');
+        }
+
+        // Voice Recording
+        let mediaRecorder;
+        let audioChunks = [];
+        
+        function startVoiceRecording() {
+            navigator.mediaDevices.getUserMedia({ audio: true })
+                .then(stream => {
+                    mediaRecorder = new MediaRecorder(stream);
+                    audioChunks = [];
+                    
+                    mediaRecorder.ondataavailable = event => {
+                        audioChunks.push(event.data);
+                    };
+                    
+                    mediaRecorder.onstop = () => {
+                        const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+                        const audioUrl = URL.createObjectURL(audioBlob);
+                        log(`BALSO ĮRAŠAS BAIGTAS 🎤`, 'system-msg');
+                        
+                        // Send audio message
+                        if (client && client.isConnected()) {
+                            const audioMsg = new Paho.MQTT.Message(JSON.stringify({
+                                type: 'audio',
+                                id: userID,
+                                audio: audioUrl
+                            }));
+                            audioMsg.destinationName = TOPIC;
+                            client.send(audioMsg);
+                        }
+                    };
+                    
+                    mediaRecorder.start();
+                    voiceBtn.textContent = '⏹ STOP';
+                    voiceBtn.style.backgroundColor = '#ff3333';
+                    log("BALSO ĮRAŠYMAS PRASIDĖJO 🔴", 'system-msg');
+                })
+                .catch(err => {
+                    log("MIKROFONO KLAIDA: " + err.message, 'error-msg');
+                });
+        }
+        
+        function stopVoiceRecording() {
+            if (mediaRecorder && mediaRecorder.state === 'recording') {
+                mediaRecorder.stop();
+                voiceBtn.textContent = '🎤 VOICE';
+                voiceBtn.style.backgroundColor = '';
+            }
         }
 
         const BROKER_HOST = "broker.emqx.io";
@@ -574,6 +666,13 @@
         const userDisplay = document.getElementById('user-display');
         const photoUpload = document.getElementById('photo-upload');
         const avatarBtn = document.getElementById('avatar-btn');
+        const voiceBtn = document.getElementById('voice-btn');
+        const videoBtn = document.getElementById('video-btn');
+        const audioUpload = document.getElementById('audio-upload');
+        const videoUpload = document.getElementById('video-upload');
+        const ttsPlayer = document.getElementById('tts-player');
+        const videoPlayer = document.getElementById('video-player');
+        const aiCanvas = document.getElementById('ai-canvas');
         const bgPhoto = document.getElementById('bg-photo');
         let client = null;
 
@@ -736,6 +835,20 @@
                     const messageType = payload.id === userID ? 'system-msg' : 
                                       payload.id === 'TERMAI' ? 'greeting-msg' : 'stranger-msg';
                     log(msgHTML, messageType);
+                    
+                    // AI multimedia responses
+                    if (payload.id === 'TERMAI') {
+                        // Text-to-Speech for AI responses
+                        if (sanitizedMsg.length < 200) {
+                            setTimeout(() => speakText(sanitizedMsg), 500);
+                        }
+                        
+                        // Check for graphics commands
+                        if (sanitizedMsg.includes('grafika') || sanitizedMsg.includes('graphics') || 
+                            sanitizedMsg.includes('pieš') || sanitizedMsg.includes('draw')) {
+                            setTimeout(() => generateAIGraphics(sanitizedMsg), 1000);
+                        }
+                    }
                     
                 } else if (payload.type === 'avatar') {
                     if (payload.id === userID) return; // Skip own avatar updates
@@ -945,6 +1058,20 @@
 
         avatarBtn.addEventListener('click', function() {
             photoUpload.click();
+        });
+
+        // Voice button event
+        voiceBtn.addEventListener('click', function() {
+            if (mediaRecorder && mediaRecorder.state === 'recording') {
+                stopVoiceRecording();
+            } else {
+                startVoiceRecording();
+            }
+        });
+
+        // Video button event
+        videoBtn.addEventListener('click', function() {
+            videoUpload.click();
         });
 
         photoUpload.addEventListener('change', function(e) {
