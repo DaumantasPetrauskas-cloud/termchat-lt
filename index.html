@@ -515,6 +515,7 @@
                 header.innerHTML = `TERMCHAT LT - ${currentRoom.toUpperCase()} | ${username} (Lvl ${userStats.level} ${levelTitle})<span class="cursor"></span>`;
             }
         }
+        function login() {
             const input = document.getElementById('usernameInput');
             const user = input.value.trim();
             if (user.length >= 3) {
