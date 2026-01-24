@@ -865,6 +865,7 @@
                         
                         // --- ADMIN RESPONSE ---
                         if (data.type === 'admin') {
+                            addMessage('ADMIN', data.msg);
                             addAdminLog(data.msg);
                             return; // Stop processing
                         }
@@ -960,6 +961,12 @@
                     return;
                 } else if (text === '/chat') {
                     switchMode('chat');
+                    input.value = '';
+                    return;
+                } else if (text.includes('@admin') || text.includes('admin status') || text.includes('admin')) {
+                    // Handle admin commands in main chat
+                    mqttClient.publish('termchat/admin', text);
+                    addMessage('SYSTEM', `Admin command sent: ${text}`);
                     input.value = '';
                     return;
                 }
