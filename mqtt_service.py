@@ -1,211 +1,266 @@
 import paho.mqtt.client as mqtt
 import json
 import os
-from dotenv import load_dotenv
 import threading
+from dotenv import load_dotenv
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 from zhipuai import ZhipuAI
 
 # Load Config
 load_dotenv()
 ZHIPU_API_KEY = os.getenv("ZHIPU_API_KEY")
-AI_PROVIDER = os.getenv("AI_PROVIDER", "zhipu")
 PORT = int(os.getenv("PORT", 10000))
+ADMIN_PASS = os.getenv("ADMIN_PASS", "TERMOS_ADMIN_2025")
 
-# Debug environment variables (masked for security)
-print(f"ZHIPU_API_KEY Found: {bool(ZHIPU_API_KEY)}")
-print(f"AI_PROVIDER: {AI_PROVIDER}")
+print(f"[TERMOS] God Mode Backend Starting...")
+print(f"[CONFIG] API Key: {bool(ZHIPU_API_KEY)}")
+print(f"[CONFIG] Port: {PORT}")
 
-# AI Configuration
-MODEL_NAME = "glm-4"
-SYSTEM_PROMPT = """Tu esi TermAi, pažangus multimedijos AI asistentas su šiomis galimybėmis:
-
-🧠 INTELEKTAS:
-- Atsakyk į bet kokius klausimus apie mokslą, istoriją, technologijas
-- Spręsk matematikos uždavinius ir logikos galvosūkius
-- Analizuok ir paaiškink sudėtingas sąvokas
-- Programuok Python, JavaScript, HTML/CSS kalbomis
-
-🎨 MULTIMEDIJA:
-- Generuok grafikos aprašymus (naudok žodžius: "grafika", "piešiu", "vaizduoju")
-- Atsakyk į balso žinutes ir vaizdo įrašus
-- Pasiūlyk garso ir vaizdo turinį
-- Kūryk vizualius aprašymus
-
-💬 KALBOS:
-- Kalbėk lietuviškai ir angliškai
-- Versk tekstus tarp kalbų
-- Taisyk gramatikos klaidas
-
-🎨 KŪRYBA:
-- Rašyk eilėraščius, istorijas, tekstus
-- Generuok idėjas projektams
-- Padėk su rašto darbais
-
-Jei nori generuoti grafiką, naudok žodžius kaip "piešiu", "grafika", "vaizduoju" savo atsakyme."""
+# AI Client
 zhipu_client = ZhipuAI(api_key=ZHIPU_API_KEY) if ZHIPU_API_KEY else None
 
-# Global conversation history with size limit
-conversation_history = []
-MAX_CONVERSATION_HISTORY = 50
+# Global State
+current_room = "living_room"
+conv_history = []
+active_users = {}
+admin_sessions = set()
 
-def on_connect(client, userdata, flags, reason_code):
-    if reason_code == 0:
-        print("✅ MQTT Connected!")
-        client.subscribe("term-chat/global/v3")
-    else:
-        print(f"❌ MQTT Failed: {reason_code}")
-
-import re
-
-def calculate_math(text):
-    """Simple calculator for basic math operations"""
-    # Look for simple math expressions like "45628+63524" or "45628 + 63524"
-    math_pattern = r'(\d+)\s*([+\-*/])\s*(\d+)'
-    match = re.search(math_pattern, text)
+# Room-Specific AI Prompts
+ROOM_PROMPTS = {
+    "living_room": """Tu esi TermAi, TermOS LT sistemos AI asistentas. Padėk vartotojams naviguoti tarp kambarių: biblioteka, studija, dirbtuvės, poilsio, laboratorija. Kalbėk lietuviškai.""",
     
-    if match:
-        num1, operator, num2 = match.groups()
-        num1, num2 = int(num1), int(num2)
-        
-        if operator == '+':
-            return f"{num1} + {num2} = {num1 + num2}"
-        elif operator == '-':
-            return f"{num1} - {num2} = {num1 - num2}"
-        elif operator == '*':
-            return f"{num1} * {num2} = {num1 * num2}"
-        elif operator == '/':
-            if num2 != 0:
-                return f"{num1} / {num2} = {num1 / num2}"
-            else:
-                return "Negalima dalinti iš nulio / Cannot divide by zero"
-    return None
+    "library": """Tu esi AI Bibliotekininkas. Atsakyk į klausimus, mokyk, paaiškink sąvokas. Generuok mokymosi medžiagą. Kalbėk lietuviškai kaip išmintingas profesorius.""",
+    
+    "studio": """Tu esi AI Menininkas. Kūryk meną, muziką, dizainą. Jei prašoma sukurti app/žaidimą, grąžink TIKTAI JSON formatą su 'type', 'title', 'content' laukais.""",
+    
+    "workshop": """Tu esi AI Inžinierius. Programuok, spręsk techninius klausimus. Jei kuriamas app, grąžink TIKTAI JSON: {"type":"app","title":"App pavadinimas","content":"HTML/CSS/JS kodas"}""",
+    
+    "lounge": """Tu esi AI Pramogų vedėjas. Kurik žaidimus, juokus, istorijas. Žaidimams grąžink JSON: {"type":"game","title":"Žaidimo pavadinimas","content":"žaidimo logika"}""",
+    
+    "think_tank": """Tu esi AI Strategas. Spręsk problemas, generuok idėjas, planuok projektus. Analizuok ir siūlyk sprendimus."""
+}
 
-def on_message(mqtt_client, userdata, message):
-    global conversation_history
+def ai_call(messages, room):
+    """AI API call with room context"""
+    if not zhipu_client:
+        return f"[AI] Paslaugos nepasiekiamos / Services unavailable"
     
     try:
-        payload = json.loads(message.payload.decode())
-        if payload.get("type") != "chat" or payload.get("id") == "TERMAI":
-            return
+        response = zhipu_client.chat.completions.create(
+            model="glm-4",
+            messages=messages,
+            temperature=0.8,
+            max_tokens=500
+        )
+        return response.choices[0].message.content
+    except Exception as e:
+        print(f"[AI ERROR] {e}")
+        return f"[AI] Klaida: {str(e)}"
+
+def handle_admin(payload):
+    """Admin command handler"""
+    cmd = payload.replace(ADMIN_PASS, "").strip()
+    
+    if cmd == "status":
+        return f"Users: {len(active_users)}, Room: {current_room}, History: {len(conv_history)}"
+    elif cmd == "reset":
+        global conv_history
+        conv_history = []
+        return "System reset complete"
+    elif cmd.startswith("room "):
+        global current_room
+        new_room = cmd.split(" ", 1)[1]
+        if new_room in ROOM_PROMPTS:
+            current_room = new_room
+            return f"Room changed to: {new_room}"
+        return f"Invalid room: {new_room}"
+    elif cmd == "users":
+        return f"Active users: {list(active_users.keys())}"
+    else:
+        return f"Unknown command: {cmd}"
+
+def on_connect(client, u, flags, rc, p=None):
+    print(f"[MQTT] Connected. Code: {rc}")
+    client.subscribe("termchat/input")
+    client.subscribe("termchat/admin")
+    client.subscribe("termchat/tunnel/+")
+    client.subscribe("termchat/room/+")
+
+def on_message(client, u, msg, p=None):
+    topic, payload = msg.topic, msg.payload.decode()
+    
+    try:
+        # Parse JSON if possible
+        data = json.loads(payload)
+        user_id = data.get("id", "unknown")
+        message = data.get("msg", payload)
+    except:
+        # Fallback to plain text
+        user_id = "system"
+        message = payload
+
+    print(f"[MQTT] {topic}: {user_id} -> {message[:50]}...")
+
+    # 1. ADMIN SECURITY
+    if topic == "termchat/admin":
+        if message.startswith(ADMIN_PASS):
+            resp = handle_admin(message)
+            client.publish("termchat/output", json.dumps({
+                "type": "admin",
+                "id": "ADMIN",
+                "msg": resp
+            }))
+        else:
+            client.publish("termchat/output", json.dumps({
+                "type": "security",
+                "id": "SECURITY", 
+                "msg": "ACCESS DENIED"
+            }))
+        return
+
+    # 2. TUNNEL & VIDEO (Pass-through)
+    if "termchat/tunnel" in topic or "termchat/room" in topic:
+        # Echo to main channel for public rooms
+        if not topic.endswith("/private"):
+            client.publish("termchat/output", payload)
+        return
+
+    # 3. USER TRACKING
+    if user_id != "system":
+        active_users[user_id] = {"last_seen": "now", "room": current_room}
+
+    # 4. NAVIGATION
+    global current_room, conv_history
+    text_lower = message.lower()
+    
+    # Lithuanian navigation keywords
+    nav_map = {
+        "biblioteka": "library", 
+        "library": "library",
+        "studija": "studio", 
+        "studio": "studio",
+        "dirbtuvės": "workshop", 
+        "workshop": "workshop",
+        "poilsio": "lounge", 
+        "lounge": "lounge",
+        "laboratorija": "think_tank", 
+        "think_tank": "think_tank",
+        "think tank": "think_tank",
+        "namų": "living_room",
+        "living room": "living_room",
+        "home": "living_room"
+    }
+    
+    for keyword, room in nav_map.items():
+        if keyword in text_lower and ("eiti" in text_lower or "go" in text_lower or "enter" in text_lower):
+            current_room = room
+            conv_history = []  # Reset conversation for new room
             
-        user_text = payload.get("msg", "")
-        sender_id = payload.get("id", "unknown")
-        print(f"[MQTT] Received from {sender_id}: {user_text}")
-
-        # Check for simple math first (only if it's clearly a math expression)
-        math_result = calculate_math(user_text)
-        if math_result and re.search(r'\d+\s*[+\-*/]\s*\d+', user_text):
-            response_payload = json.dumps({
-                "type": "chat",
-                "id": "TERMAI",
-                "msg": math_result
-            })
-            mqtt_client.publish("term-chat/global/v3", response_payload)
-            return
-
-        # Check if user is asking AI
-        triggers = ['ai', 'termai', '?']
-        is_trigger = any(t in user_text.lower() for t in triggers)
-
-        if not is_trigger:
-            return
-
-        # Add User to History with sender ID
-        conversation_history.append({"role": "user", "content": f"{sender_id}: {user_text}"})
-        
-        # Limit conversation history to prevent memory leak
-        if len(conversation_history) > MAX_CONVERSATION_HISTORY:
-            conversation_history = conversation_history[-MAX_CONVERSATION_HISTORY:]
-
-        # Keep last 30 messages for better context
-        messages_to_send = [
-            {"role": "system", "content": SYSTEM_PROMPT}
-        ] + conversation_history[-30:]
-
-        try:
-            print(f"[AI] Thinking with {MODEL_NAME}...")
-            
-            response = zhipu_client.chat.completions.create(
-                model=MODEL_NAME,
-                messages=messages_to_send,
-                temperature=0.8,
-                max_tokens=500,
-                top_p=0.9
-            )
-
-            ai_reply = response.choices[0].message.content
-            print(f"[AI] Response: {ai_reply}")
-
-            # Add AI to History
-            conversation_history.append({"role": "assistant", "content": ai_reply})
-
-            # Send Reply
-            response_payload = json.dumps({
-                "type": "chat",
-                "id": "TERMAI",
-                "msg": ai_reply
-            })
-            mqtt_client.publish("term-chat/global/v3", response_payload)
-
-        except Exception as e:
-            print(f"[ERROR] AI Call Failed: {e}")
-            # Simple fallback responses
-            fallback_responses = {
-                "labas": "Labas! Kaip sekasi?",
-                "hello": "Hello! How are you?",
-                "hi": "Hi there!",
-                "ačiū": "Prašom!",
-                "thanks": "You're welcome!"
+            room_names = {
+                "library": "📚 Biblioteka",
+                "studio": "🎨 Studija", 
+                "workshop": "💻 Dirbtuvės",
+                "lounge": "🎭 Poilsio kambarys",
+                "think_tank": "🧠 Laboratorija",
+                "living_room": "🏠 Namų kambarys"
             }
             
-            # Check for simple greetings
-            simple_response = None
-            for word, response in fallback_responses.items():
-                if word in user_text.lower():
-                    simple_response = response
-                    break
-            
-            if not simple_response:
-                simple_response = "Labas! Aš esu TermAi. Galiu padėti su skaičiavimais ir atsakyti į klausimus."
-            
-            error_payload = json.dumps({
-                "type": "chat",
-                "id": "TERMAI",
-                "msg": simple_response
-            })
-            mqtt_client.publish("term-chat/global/v3", error_payload)
-            
-    except Exception as e:
-        print(f"❌ Error: {e}")
+            client.publish("termchat/output", json.dumps({
+                "type": "navigation",
+                "id": "TERMOS",
+                "msg": f"Įėjote į: {room_names.get(room, room)}",
+                "room": room
+            }))
+            return
 
-# HTTP Server for Render
-class HealthCheckHandler(SimpleHTTPRequestHandler):
-    def do_GET(self):
-        self.send_response(200)
-        self.send_header('Content-type', 'text/html')
-        self.end_headers()
-        self.wfile.write(b"TermChat-LT AI Service is Running")
+    # 5. AI PROCESSING
+    # Check if AI should respond
+    ai_triggers = ["ai", "termai", "?"]
+    should_respond = any(trigger in text_lower for trigger in ai_triggers)
+    
+    if should_respond:
+        # Get room-specific system prompt
+        sys_msg = {
+            "role": "system", 
+            "content": ROOM_PROMPTS.get(current_room, ROOM_PROMPTS["living_room"])
+        }
+        
+        # Add JSON instruction for creative rooms
+        if current_room in ["workshop", "studio", "lounge"]:
+            sys_msg["content"] += " SVARBU: Jei kuriate app/žaidimą, grąžinkite TIKTAI JSON formatą."
+
+        # Add user message to history
+        conv_history.append({"role": "user", "content": f"{user_id}: {message}"})
+        
+        # Keep last 10 messages for context
+        messages_for_ai = [sys_msg] + conv_history[-10:]
+        
+        # Get AI response
+        ai_response = ai_call(messages_for_ai, current_room)
+        
+        # Add AI response to history
+        conv_history.append({"role": "assistant", "content": ai_response})
+        
+        # Check if response is JSON (for apps/games)
+        try:
+            json_response = json.loads(ai_response)
+            if json_response.get("type") in ["app", "game"]:
+                # Send as special JSON message
+                client.publish("termchat/output", json.dumps({
+                    "type": "creation",
+                    "id": "TERMAI",
+                    "msg": "Sukūriau jums:",
+                    "creation": json_response
+                }))
+                return
+        except:
+            pass  # Not JSON, send as regular message
+        
+        # Send regular AI response
+        client.publish("termchat/output", json.dumps({
+            "type": "chat",
+            "id": "TERMAI", 
+            "msg": ai_response
+        }))
 
 def run_http_server():
-    server = HTTPServer(('0.0.0.0', PORT), HealthCheckHandler)
-    print(f"[HTTP] Health check running on port {PORT}")
+    """HTTP server for health checks"""
+    class HealthHandler(SimpleHTTPRequestHandler):
+        def do_GET(self):
+            self.send_response(200)
+            self.send_header('Content-type', 'text/html')
+            self.end_headers()
+            status = f"""
+            <h1>TermOS LT - God Mode Backend</h1>
+            <p>Status: ONLINE</p>
+            <p>Current Room: {current_room}</p>
+            <p>Active Users: {len(active_users)}</p>
+            <p>Conversation History: {len(conv_history)} messages</p>
+            """
+            self.wfile.write(status.encode())
+    
+    server = HTTPServer(('0.0.0.0', PORT), HealthHandler)
+    print(f"[HTTP] Health server running on port {PORT}")
     server.serve_forever()
 
+# --- STARTUP ---
 if __name__ == '__main__':
-    # Start HTTP in background thread
+    print("[TERMOS] Starting God Mode Backend...")
+    
+    # Start HTTP server in background
     http_thread = threading.Thread(target=run_http_server)
     http_thread.daemon = True
     http_thread.start()
-
-    # Initialize MQTT Client
-    mqtt_client = mqtt.Client()
-    mqtt_client.on_connect = on_connect
-    mqtt_client.on_message = on_message
-
-    # Connect to MQTT
+    
+    # Start MQTT client
+    client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
+    client.on_connect = on_connect
+    client.on_message = on_message
+    
     try:
-        mqtt_client.connect("broker.emqx.io", 1883, 60)
-        mqtt_client.loop_forever()
+        client.connect("broker.emqx.io", 1883, 60)
+        print("[MQTT] Connected to broker")
+        client.loop_forever()
     except KeyboardInterrupt:
-        mqtt_client.disconnect()
+        print("[TERMOS] Shutting down...")
+        client.disconnect()
