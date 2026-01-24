@@ -845,34 +845,62 @@
             try {
                 const client = new Paho.MQTT.Client("broker.emqx.io", 8084, "client_" + Math.random());
                 
+                client.onConnectionLost = function(responseObject) {
+                    if (responseObject.errorCode !== 0) {
+                        addMessage('ERROR', 'Connection lost: ' + responseObject.errorMessage);
+                        // Auto-reconnect after 5 seconds
+                        setTimeout(connectMQTT, 5000);
+                    }
+                };
+                
                 client.onMessageArrived = function(message) {
-                    const data = JSON.parse(message.payloadString);
-                    addMessage(data.user, data.text);
+                    try {
+                        const data = JSON.parse(message.payloadString);
+                        if (data.user && data.text) {
+                            addMessage(data.user, data.text);
+                        } else if (data.id && data.msg) {
+                            addMessage(data.id, data.msg);
+                        }
+                    } catch(e) {
+                        addMessage('SYSTEM', message.payloadString);
+                    }
                 };
                 
                 client.connect({
                     onSuccess: function() {
                         addMessage('SYSTEM', 'Connected to chat!');
                         client.subscribe('termchat/messages');
+                        client.subscribe('termchat/output');
                         window.mqttClient = client;
                     },
-                    onFailure: function() {
-                        addMessage('ERROR', 'Failed to connect');
+                    onFailure: function(error) {
+                        addMessage('ERROR', 'Failed to connect: ' + error.errorMessage);
+                        setTimeout(connectMQTT, 5000);
                     },
                     useSSL: true
                 });
             } catch(e) {
                 addMessage('ERROR', 'MQTT Error: ' + e.message);
+                setTimeout(connectMQTT, 5000);
             }
         }
         
         function sendMsg() {
             const input = document.getElementById('messageInput');
             const text = input.value.trim();
-            if (text && window.mqttClient) {
-                const msg = { user: window.username, text: text };
-                window.mqttClient.publish('termchat/messages', JSON.stringify(msg));
+            if (text && window.mqttClient && window.mqttClient.isConnected()) {
+                const msg = { 
+                    id: window.username, 
+                    msg: text,
+                    timestamp: Date.now()
+                };
+                
+                // Send to both topics for compatibility
+                window.mqttClient.publish('termchat/messages', JSON.stringify({user: window.username, text: text}));
+                window.mqttClient.publish('termchat/input', JSON.stringify(msg));
                 input.value = '';
+            } else if (!window.mqttClient || !window.mqttClient.isConnected()) {
+                addMessage('ERROR', 'Not connected to chat');
             }
         }
         

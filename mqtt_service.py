@@ -56,28 +56,16 @@ def ai_call(messages, room):
         return f"AI service unavailable"
     
     try:
-        # Simple test call first
         response = zhipu_client.chat.completions.create(
-            model="chatglm_turbo",
-            messages=[{"role": "user", "content": "Hello"}],
-            temperature=0.7
+            model="glm-4",
+            messages=messages,
+            temperature=0.7,
+            max_tokens=300
         )
-        return "AI connected successfully"
+        return response.choices[0].message.content
     except Exception as e:
-        return f"AI Error: {str(e)[:100]}"
-        
-    # Original code commented out for now
-    # try:
-    #     response = zhipu_client.chat.completions.create(
-    #         model="glm-4",
-    #         messages=messages,
-    #         temperature=0.7,
-    #         max_tokens=300
-    #     )
-    #     return response.choices[0].message.content
-    # except Exception as e:
-    #     print(f"[AI ERROR] {e}")
-    #     return f"AI Error: {str(e)}"
+        print(f"[AI ERROR] {e}")
+        return f"AI Error: {str(e)[:50]}"
 
 def handle_admin(payload):
     """Admin command handler"""
