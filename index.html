@@ -6,6 +6,10 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="TermChat">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#00ff00">
+    <meta name="msapplication-navbutton-color" content="#00ff00">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' https: data:; connect-src 'self' wss: https: ws:; font-src 'self' data:;">
     <title>TermChat LT</title>
 
@@ -372,35 +376,30 @@
             letter-spacing: 1px;
         }
 
-        /* Mobile specific adjustments */
-        @media (max-width: 600px) {
-            #screen {
-                padding-top: 60px;
-                padding-bottom: 120px;
-            }
-
-            .log-entry {
-                font-size: 13px;
-            }
-
-            #listen-btn {
-                font-size: 11px;
-                padding: 7px 12px;
-            }
-
-            input {
-                font-size: 13px;
-            }
+        /* Mobile & Device Compatibility */
+        @media screen and (max-width: 768px) {
+            body { font-size: 14px; }
+            .container { padding: 5px; }
+            input { font-size: 16px; } /* Prevent zoom on iOS */
         }
-
-        @media (min-width: 800px) {
-            body { 
-                max-width: 700px; 
-                margin: 0 auto; 
-                border-left: 1px solid var(--term-dim); 
-                border-right: 1px solid var(--term-dim);
-                box-shadow: inset 0 0 50px rgba(0, 255, 0, 0.05);
-            }
+        
+        @media screen and (max-height: 600px) {
+            .chat-area { height: 60vh; }
+        }
+        
+        /* Landscape mobile */
+        @media screen and (max-width: 768px) and (orientation: landscape) {
+            .chat-area { height: 50vh; }
+        }
+        
+        /* Tablet */
+        @media screen and (min-width: 768px) and (max-width: 1024px) {
+            body { max-width: 90%; margin: 0 auto; }
+        }
+        
+        /* Desktop */
+        @media screen and (min-width: 1024px) {
+            body { max-width: 800px; margin: 0 auto; }
         }
 
         /* Loading spinner */
@@ -579,12 +578,20 @@
     <script src="./paho-mqtt.min.js" type="text/javascript"></script>
 
     <script>
-        // Enhanced BIOS Boot Sequence
+        // Enhanced BIOS Boot Sequence with device detection
         window.onload = function() {
+            // Detect device type
+            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+            const isTablet = /iPad|Android/i.test(navigator.userAgent) && window.innerWidth > 768;
+            
             const screen = document.body;
             screen.innerHTML = ""; // Clear screen
+            
+            const deviceType = isMobile ? "MOBILE" : isTablet ? "TABLET" : "DESKTOP";
+            
             const bootText = [
                 "BIOS DATE 01/01/2025 15:42:00 VER 1.0",
+                `DEVICE: ${deviceType} DETECTED`,
                 "CPU: QUANTUM CORE... OK",
                 "MEMORY: 64TB DETECTED...",
                 "LOADING KERNEL...",
@@ -598,9 +605,12 @@
                 if (i < bootText.length) {
                     const p = document.createElement('div');
                     p.innerText = "> " + bootText[i];
+                    p.style.color = '#33ff00';
+                    p.style.fontFamily = 'Courier New, monospace';
+                    p.style.margin = '5px 0';
                     screen.appendChild(p);
                     window.scrollTo(0, document.body.scrollHeight);
-                    setTimeout(typeLine, 400); // Speed of typing
+                    setTimeout(typeLine, 400);
                     i++;
                 } else {
                     setTimeout(showLogin, 500);
@@ -610,18 +620,28 @@
         };
 
         function showLogin() {
+            const isMobile = window.innerWidth <= 768;
+            const buttonStyle = isMobile ? 'padding:15px; font-size:16px;' : 'padding:10px;';
+            const inputStyle = isMobile ? 'padding:15px; font-size:16px;' : 'padding:10px;';
+            
             document.body.innerHTML = `
-                <div style="display:flex; justify-content:center; align-items:center; height:100vh;">
-                    <div style="border: 2px solid var(--term-color); padding: 40px; background: rgba(0,20,0,0.9);">
-                        <h2 style="text-align:center;">TERMOS LT</h2>
-                        <p>PRISIJUNKITE VARTOTOJU</p>
-                        <input type="text" id="usernameInput" placeholder="Username" style="background:#000; border:1px solid var(--term-color); color:var(--term-color); width:100%; padding:10px;">
-                        <br><br>
-                        <button onclick="login()" style="background:var(--term-color); color:#000; width:100%; padding:10px; font-weight:bold; cursor:pointer;">ENTER SYSTEM</button>
+                <div style="display:flex; justify-content:center; align-items:center; height:100vh; padding:20px;">
+                    <div style="border: 2px solid #33ff00; padding: 40px; background: rgba(0,20,0,0.9); max-width:400px; width:100%;">
+                        <h2 style="text-align:center; color:#33ff00; margin-bottom:20px;">TERMOS LT</h2>
+                        <p style="color:#33ff00; text-align:center; margin-bottom:20px;">PRISIJUNKITE VARTOTOJU</p>
+                        <input type="text" id="usernameInput" placeholder="Username" 
+                               style="background:#000; border:1px solid #33ff00; color:#33ff00; width:100%; ${inputStyle} box-sizing:border-box; margin-bottom:20px;">
+                        <button onclick="login()" 
+                                style="background:#33ff00; color:#000; width:100%; ${buttonStyle} font-weight:bold; cursor:pointer; border:none; box-sizing:border-box;">ENTER SYSTEM</button>
                     </div>
                 </div>
-                <!-- Hidden panels will be injected via JS -->
             `;
+            
+            // Focus input after render
+            setTimeout(() => {
+                const input = document.getElementById('usernameInput');
+                if (input) input.focus();
+            }, 100);
         }
         // Multiverse Frontend Functions
         function initMqtt(user) {
