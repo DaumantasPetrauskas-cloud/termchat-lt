@@ -448,9 +448,12 @@
             loadUserStats();
             
             document.getElementById('usernameInput').focus();
-            document.getElementById('usernameInput').addEventListener('keypress', function(e) {
-                if (e.key === 'Enter') login();
-            });
+            const usernameInput = document.getElementById('usernameInput');
+            if (usernameInput) {
+                usernameInput.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') login();
+                });
+            }
         });
 
         // --- USER STATS & GAMIFICATION ---
@@ -533,9 +536,12 @@
                 document.getElementById('chatInput').focus();
                 
                 // Setup input handler
-                document.getElementById('chatInput').addEventListener('keypress', function(e) {
-                    if (e.key === 'Enter') sendMessage();
-                });
+                const chatInput = document.getElementById('chatInput');
+                if (chatInput) {
+                    chatInput.addEventListener('keypress', function(e) {
+                        if (e.key === 'Enter') sendMessage();
+                    });
+                }
             } else {
                 alert('Username must be at least 3 characters');
             }
