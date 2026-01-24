@@ -22,6 +22,11 @@
 
     <style>
         /* --- CRT & RETRO EFFECTS --- */
+        :root {
+            --term-color: #33ff00;
+            --term-bg: #050505;
+        }
+        
         * {
             box-sizing: border-box;
         }
@@ -32,15 +37,15 @@
             width: 100%;
             height: 100%;
             overflow-x: hidden;
+            background-color: var(--term-bg);
+            color: var(--term-color);
+            font-family: 'Courier New', Courier, monospace;
         }
         
         body {
-            background-color: #050505;
-            color: #33ff00;
-            font-family: 'Courier New', Courier, monospace;
             overflow: hidden;
             height: 100vh;
-            text-shadow: 0 0 4px #33ff00;
+            text-shadow: 0 0 4px var(--term-color);
             -webkit-text-size-adjust: 100%;
             -webkit-user-select: none;
             user-select: none;
@@ -82,6 +87,12 @@
         body.theme-living, body.theme-library, body.theme-studio, body.theme-workshop, body.theme-think, body.theme-lounge {
             color: var(--term-color);
             text-shadow: 0 0 5px var(--term-color);
+        }
+        
+        /* Fix Chrome rendering */
+        body {
+            background: var(--term-bg) !important;
+            color: var(--term-color) !important;
         }
 
         /* Container and Layout */
@@ -644,15 +655,23 @@
                 const buttonStyle = isMobile ? 'padding:15px; font-size:16px;' : 'padding:10px;';
                 const inputStyle = isMobile ? 'padding:15px; font-size:16px;' : 'padding:10px;';
                 
+                // Ensure body styling for Chrome
+                document.body.style.backgroundColor = '#050505';
+                document.body.style.color = '#33ff00';
+                document.body.style.fontFamily = 'Courier New, monospace';
+                document.body.style.margin = '0';
+                document.body.style.padding = '0';
+                document.body.style.height = '100vh';
+                
                 document.body.innerHTML = `
-                    <div style="display:flex; justify-content:center; align-items:center; height:100vh; padding:20px; background:#050505;">
-                        <div style="border: 2px solid #33ff00; padding: 40px; background: rgba(0,20,0,0.9); max-width:400px; width:100%;">
-                            <h2 style="text-align:center; color:#33ff00; margin-bottom:20px; font-family: Courier New, monospace;">TERMOS LT</h2>
-                            <p style="color:#33ff00; text-align:center; margin-bottom:20px; font-family: Courier New, monospace;">PRISIJUNKITE VARTOTOJU</p>
+                    <div style="display:flex; justify-content:center; align-items:center; height:100vh; padding:20px; background:#050505; min-height:100vh;">
+                        <div style="border: 2px solid #33ff00; padding: 40px; background: rgba(0,20,0,0.9); max-width:400px; width:100%; border-radius:5px;">
+                            <h2 style="text-align:center; color:#33ff00; margin:0 0 20px 0; font-family: 'Courier New', monospace; font-size:24px;">TERMOS LT</h2>
+                            <p style="color:#33ff00; text-align:center; margin:0 0 20px 0; font-family: 'Courier New', monospace; font-size:14px;">PRISIJUNKITE VARTOTOJU</p>
                             <input type="text" id="usernameInput" placeholder="Username" 
-                                   style="background:#000; border:1px solid #33ff00; color:#33ff00; width:100%; ${inputStyle} box-sizing:border-box; margin-bottom:20px; font-family: Courier New, monospace;">
+                                   style="background:#000; border:1px solid #33ff00; color:#33ff00; width:100%; ${inputStyle} box-sizing:border-box; margin-bottom:20px; font-family: 'Courier New', monospace; display:block;">
                             <button onclick="login()" 
-                                    style="background:#33ff00; color:#000; width:100%; ${buttonStyle} font-weight:bold; cursor:pointer; border:none; box-sizing:border-box; font-family: Courier New, monospace;">ENTER SYSTEM</button>
+                                    style="background:#33ff00; color:#000; width:100%; ${buttonStyle} font-weight:bold; cursor:pointer; border:none; box-sizing:border-box; font-family: 'Courier New', monospace; display:block;">ENTER SYSTEM</button>
                         </div>
                     </div>
                 `;
@@ -669,6 +688,8 @@
                 }, 100);
             } catch (e) {
                 console.error('Login screen error:', e);
+                document.body.style.backgroundColor = '#050505';
+                document.body.style.color = '#33ff00';
                 document.body.innerHTML = '<div style="color:#33ff00; padding:20px; font-family:monospace;">ERROR: Please refresh page</div>';
             }
         }
