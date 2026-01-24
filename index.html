@@ -842,6 +842,11 @@
         }
         
         function connectMQTT() {
+            // Check HTTPS for video features
+            if (location.protocol !== 'https:' && location.hostname !== 'localhost') {
+                addMessage('SYSTEM', 'WARNING: Video features disabled (HTTPS required)');
+            }
+            
             try {
                 const client = new Paho.MQTT.Client("broker.emqx.io", 8084, "client_" + Math.random());
                 
@@ -877,7 +882,9 @@
                         addMessage('ERROR', 'Failed to connect: ' + error.errorMessage);
                         setTimeout(connectMQTT, 5000);
                     },
-                    useSSL: true
+                    useSSL: true,
+                    timeout: 10,
+                    keepAliveInterval: 30
                 });
             } catch(e) {
                 addMessage('ERROR', 'MQTT Error: ' + e.message);
@@ -885,37 +892,69 @@
             }
         }
         
+        // Enhanced message validation and rate limiting
+        let lastMessageTime = 0;
+        const MESSAGE_COOLDOWN = 1000; // 1 second between messages
+        
         function sendMsg() {
             const input = document.getElementById('messageInput');
             const text = input.value.trim();
-            if (text && window.mqttClient && window.mqttClient.isConnected()) {
+            const now = Date.now();
+            
+            // Rate limiting
+            if (now - lastMessageTime < MESSAGE_COOLDOWN) {
+                addMessage('SYSTEM', 'Please wait before sending another message');
+                return;
+            }
+            
+            // Message validation
+            if (!text) return;
+            if (text.length > 500) {
+                addMessage('ERROR', 'Message too long (max 500 characters)');
+                return;
+            }
+            
+            if (window.mqttClient && window.mqttClient.isConnected()) {
                 const msg = { 
                     id: window.username, 
                     msg: text,
-                    timestamp: Date.now()
+                    timestamp: now
                 };
                 
-                // Send to both topics for compatibility
-                window.mqttClient.publish('termchat/messages', JSON.stringify({user: window.username, text: text}));
-                window.mqttClient.publish('termchat/input', JSON.stringify(msg));
-                input.value = '';
-            } else if (!window.mqttClient || !window.mqttClient.isConnected()) {
+                try {
+                    // Send to both topics for compatibility
+                    window.mqttClient.publish('termchat/messages', JSON.stringify({user: window.username, text: text}));
+                    window.mqttClient.publish('termchat/input', JSON.stringify(msg));
+                    input.value = '';
+                    lastMessageTime = now;
+                } catch(e) {
+                    addMessage('ERROR', 'Failed to send message: ' + e.message);
+                }
+            } else {
                 addMessage('ERROR', 'Not connected to chat');
             }
         }
         
         function addMessage(user, text) {
             const messages = document.getElementById('messages');
+            if (!messages) return;
+            
+            // Limit message history to prevent memory issues
+            while (messages.children.length > 100) {
+                messages.removeChild(messages.firstChild);
+            }
+            
             const div = document.createElement('div');
             div.style.marginBottom = '5px';
-            div.style.color = user === 'SYSTEM' ? '#00ff00' : user === 'ERROR' ? '#ff0000' : '#33ff00';
+            div.style.color = user === 'SYSTEM' ? '#00ff00' : user === 'ERROR' ? '#ff0000' : user === 'TERMAI' ? '#00ff41' : '#33ff00';
             
             // SECURE: Use textContent to prevent XSS
             const userSpan = document.createElement('span');
             userSpan.textContent = `[${user}] `;
             
             const textSpan = document.createElement('span');
-            textSpan.textContent = text;
+            // Sanitize text content
+            textSpan.textContent = String(text).substring(0, 1000); // Limit text length
             
             div.appendChild(userSpan);
             div.appendChild(textSpan);
