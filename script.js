@@ -1,18 +1,19 @@
 // =========================================================================
-//      M   TERMOS LT: SYSTEM ARCHITECT EDITION v2.1 (REBUILD)
+//      M   TERMOS LT: ARCHITECT EDITION v2.3 (TERM_AI MASTER)
 // =========================================================================
 
 // --- 1. CONFIGURATION ---
 let GROQ_API_KEY = localStorage.getItem('termos_groq_key') || ""; 
+let ZHIPU_API_KEY = localStorage.getItem('termos_zhipu_key') || ""; 
 let USE_LOCAL_AI = false;
-const MQTT_BROKER_URL = 'wss://broker.emqx.io:8084/mqtt'; // Standard MQTT over WebSockets
+const MQTT_BROKER_URL = 'wss://broker.emqx.io:8084/mqtt'; 
 
 // --- 2. STATE ---
 let username = 'Guest';
 let mqttClient = null;
 let currentRoom = 'living_room';
 let userStats = { level: 1, xp: 0, avatar: '>_<', title: 'Newbie' };
-const LEVELS = ['Newbie', 'Apprentice', 'Coder', 'Hacker', 'Architect', 'Wizard', 'Master', 'Guru', 'Legend'];
+const LEVELS = ['Newbie', 'Apprentice', 'Coder', 'Hacker', 'Architect', 'Wizard', 'Master', 'Guru', 'Legend', 'GOD'];
 
 // ADMIN STATE
 let adminMode = false; 
@@ -29,40 +30,26 @@ window.addEventListener('load', () => {
     runTerminalBoot();
 });
 
-// Mobile and Touch Optimization
+// Mobile Optimization
 function optimizeForMobile() {
-    // Fix viewport on mobile
     const viewport = document.querySelector('meta[name="viewport"]');
     if (viewport) {
         viewport.setAttribute('content', 'width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no');
     }
-    
-    // Prevent zoom on input focus
     document.addEventListener('touchmove', (e) => {
         if (e.target.closest('input, button, textarea')) {
             e.preventDefault();
         }
     }, { passive: false });
-    
-    // Handle device orientation changes
     window.addEventListener('orientationchange', () => {
         setTimeout(() => {
             document.getElementById('chat-container')?.scrollTop = document.getElementById('chat-container')?.scrollHeight || 0;
         }, 100);
     });
-    
-    // Improve scrolling performance
     const styles = document.createElement('style');
     styles.textContent = `
-        #chat-container {
-            -webkit-overflow-scrolling: touch;
-            scroll-behavior: smooth;
-        }
-        input, button {
-            -webkit-appearance: none;
-            -moz-appearance: none;
-            appearance: none;
-        }
+        #chat-container { -webkit-overflow-scrolling: touch; scroll-behavior: smooth; }
+        input, button { -webkit-appearance: none; -moz-appearance: none; appearance: none; }
     `;
     document.head.appendChild(styles);
 }
@@ -73,37 +60,31 @@ async function runTerminalBoot() {
     const statusEl = document.getElementById('boot-status');
     
     const presentationText = [
-        "INITIALIZING TERMOS LT v2.1...",
+        "INITIALIZING TERMOS LT v2.3...",
         "Loading kernel modules... [OK]",
-        "Connecting to Neural Net... [OK]",
+        "Aggregating Neural Cores... [OK]",
         "",
-        ">>> DETECTED FEATURES:",
-        ">>> [1] Multiverse Chat (MQTT)",
-        ">>> [2] Gamification System (XP/Leveling)",
-        ">>> [3] Music Engine (Ogg/MP3)",
-        ">>> [4] AI Assistant (NEURAL)",
+        ">>> NEW BORN DETECTED:",
+        ">>> NAME: TermAi (MASTER INTELLIGENCE)",
+        ">>> CORES: Zhipu(GLM-4) + Groq(Mixtral) + Local",
         "",
         ">>> SELECT MODE:",
-        ">>> [1] Chat/Music Only (FAST)",
-        ">>> [2] AI Mode (requires Groq API key)",
-        ">>> [3] Local AI Mode (simulated, no key)",
+        ">>> [1] Chat/Music Only",
+        ">>> [2] TermAi (Unified Master AI)",
+        ">>> [3] Local Fallback Only",
         "",
-        ">>> AI MODE SETUP:",
-        ">>> Get free API key: console.groq.com",
-        ">>> Enter when prompted in mode [2]",
-        "",
-        "Type '1', '2', or '3' to initialize..."
+        ">>> TYPE '1', '2', or '3' TO INITIALIZE...",
+        ">>> TYPE 'admin' FOR ROOT ACCESS..."
     ];
 
-    statusEl.innerText = "AUTO-SEQUENCE ACTIVE...";
+    statusEl.innerText = "BOOT SEQUENCE ACTIVE...";
 
-    // Helper for colored text
     const colorize = (text) => {
         return text
             .replace(/\[OK\]/g, '<span class="text-green-400">[OK]</span>')
             .replace(/\[1\]/g, '<span class="text-blue-400">[1]</span>')
-            .replace(/\[2\]/g, '<span class="text-cyan-400">[2]</span>')
-            .replace(/\[3\]/g, '<span class="text-purple-400">[3]</span>')
+            .replace(/\[2\]/g, '<span class="text-purple-400">[2]</span>')
+            .replace(/\[3\]/g, '<span class="text-gray-400">[3]</span>')
             .replace(/>>>/g, '<span class="text-gray-500">>>></span>')
             .replace(/✅/g, '<span class="text-green-400">✅</span>')
             .replace(/⚠/g, '<span class="text-yellow-400">⚠</span>');
@@ -120,65 +101,66 @@ async function runTerminalBoot() {
         await sleep(30); 
     }
 
-    statusEl.innerText = "SCAN COMPLETE. SELECT MODE.";
+    statusEl.innerText = "SYSTEM READY.";
     statusEl.className = "text-green-500 font-bold animate-pulse";
 }
 
 // --- 6. BOOT HANDLERS ---
 async function enterApp(mode) {
     
-    // MODE 4: ADMIN MODE
+    // ADMIN MODE
     if (mode === 'admin') {
         adminMode = true;
         userRole = 'ADMIN';
-        currentMatrixColor = '#ff0000'; // Switch to Red
+        currentMatrixColor = '#ff0000';
         initMatrix(currentMatrixColor);
-        startMainApp("SYSTEM ARCHITECT MODE: ROOT ACCESS GRANTED.");
+        startMainApp("ROOT ACCESS GRANTED. TermAi UNDER SUPERVISION.");
         return;
     }
 
-    // MODE 1: CHAT ONLY
+    // MODE 'chat': CHAT ONLY
     if (mode === 'chat') {
         adminMode = false;
         userRole = 'USER';
-        USE_LOCAL_AI = false;
-        currentMatrixColor = '#0F0';
-        initMatrix(currentMatrixColor);
-        startMainApp("Chat & Music Mode Initialized.");
+        USE_LOCAL_AI = true; 
+        startMainApp("Offline Mode Initialized.");
         return;
     }
 
-    // MODE 2: API KEY
-    if (mode === 'api') {
+    // MODE 'termai': UNIFIED MASTER
+    if (mode === 'termai') {
         adminMode = false;
         userRole = 'USER';
-        const existingKey = localStorage.getItem('termos_groq_key');
-        if (existingKey) {
-            GROQ_API_KEY = existingKey;
-            USE_LOCAL_AI = false;
-            startMainApp("Remote AI Mode Activated.");
-            return;
+        
+        if (!GROQ_API_KEY && !ZHIPU_API_KEY) {
+            const wantGroq = confirm(">>> NO API KEYS DETECTED.\n\nTermAi requires Groq or Zhipu keys for full intelligence.\n\nAdd Groq Key now?");
+            if (wantGroq) {
+                const key = prompt(">>> ENTER GROQ API KEY:");
+                if (key && key.length > 10) {
+                    GROQ_API_KEY = key;
+                    localStorage.setItem('termos_groq_key', key);
+                }
+            } else {
+                 const wantZhipu = confirm("Add Zhipu Key instead?");
+                 if (wantZhipu) {
+                    const key = prompt(">>> ENTER ZHIPU API KEY:");
+                    if (key && key.length > 10) {
+                        ZHIPU_API_KEY = key;
+                        localStorage.setItem('termos_zhipu_key', key);
+                    }
+                 }
+            }
         }
-
-        const key = prompt(">>> ENTER GROQ API KEY:");
-        if (key && key.length > 10) {
-            GROQ_API_KEY = key;
-            localStorage.setItem('termos_groq_key', key);
-            USE_LOCAL_AI = false;
-            startMainApp("Remote AI Mode Activated.");
-        } else {
-            alert(">>> ERROR: KEY INVALID OR CANCELLED.");
-        }
+        startMainApp("TERM_AI ONLINE: UNIFIED CORES ACTIVE.");
         return;
     }
 
-    // MODE 3: LOCAL AI
+    // MODE 'local': LOCAL AI
     if (mode === 'local') {
         adminMode = false;
         userRole = 'USER';
         USE_LOCAL_AI = true;
-        GROQ_API_KEY = "";
-        startMainApp("Local AI Mode (Simulated).");
+        startMainApp("Local Simulation Mode.");
         return;
     }
 }
@@ -187,70 +169,44 @@ async function enterApp(mode) {
 function startMainApp(message) {
     const boot = document.getElementById('terminal-boot');
     if(boot) boot.style.display = 'none';
-    
     const main = document.getElementById('main-layout');
     if(main) {
         main.classList.remove('hidden');
         main.classList.add('flex');
     }
-    
     if (!username || username === 'Guest') {
         username = "Operator_" + Math.floor(Math.random() * 9999);
     }
-    
     const userDisplay = document.getElementById('user-display');
     if(userDisplay) userDisplay.innerText = `@${username.toUpperCase()}`;
-    
     loadStats();
     updateStatsUI();
     connectMQTT();
-    
     addSystemMessage(message);
 }
 
 // --- 7B. AI FEATURE INSTALLATION SYSTEM ---
 const FEATURE_LIBRARY = {
-    youtube: {
-        name: 'YouTube Player',
-        script: 'https://www.youtube.com/iframe_api',
-        description: 'Embed and play YouTube videos'
-    },
-    spotify: {
-        name: 'Spotify Web API',
-        script: 'https://sdk.scdn.co/spotify-player.js',
-        description: 'Play Spotify music'
-    },
-    canvas: {
-        name: 'Canvas Drawing',
-        description: 'Built-in HTML5 Canvas support'
-    },
-    webgl: {
-        name: '3D WebGL',
-        description: 'Built-in WebGL support'
-    },
-    fetch: {
-        name: 'API Fetching',
-        description: 'Built-in Fetch API support'
-    },
-    openai: {
-        name: 'OpenAI API',
-        script: 'https://cdn.jsdelivr.net/npm/openai@latest',
-        description: 'OpenAI integration'
-    },
-    chart: {
-        name: 'Chart.js',
-        script: 'https://cdn.jsdelivr.net/npm/chart.js',
-        description: 'Data visualization charts'
-    },
-    threejs: {
-        name: 'Three.js',
-        script: 'https://cdn.jsdelivr.net/npm/three@latest/build/three.min.js',
-        description: '3D graphics library'
-    }
+    youtube: { name: 'YouTube Player', script: 'https://www.youtube.com/iframe_api' },
+    spotify: { name: 'Spotify Web API', script: 'https://sdk.scdn.co/spotify-player.js' },
+    threejs: { name: 'Three.js', script: 'https://cdn.jsdelivr.net/npm/three@latest/build/three.min.js' },
+    chart: { name: 'Chart.js', script: 'https://cdn.jsdelivr.net/npm/chart.js' }
 };
 
 async function detectRequiredFeatures(userRequest) {
-    // Ask AI what features are needed
+    const useZhipu = ZHIPU_API_KEY && ZHIPU_API_KEY.length > 10;
+    let url = "https://api.groq.com/openai/v1/chat/completions";
+    let key = GROQ_API_KEY;
+    let model = "mixtral-8x7b-32768";
+
+    if (useZhipu) {
+        url = "https://open.bigmodel.cn/api/paas/v4/chat/completions";
+        key = ZHIPU_API_KEY;
+        model = "glm-4";
+    } else if (!GROQ_API_KEY) {
+        return []; 
+    }
+
     const featurePrompt = `Analyze this user request and respond with ONLY a JSON array of feature names needed (lowercase, no explanation):
 "${userRequest}"
 
@@ -259,228 +215,136 @@ Available features: ${Object.keys(FEATURE_LIBRARY).join(', ')}
 Respond ONLY with JSON like: ["feature1", "feature2"]`;
     
     try {
-        const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+        const response = await fetch(url, {
             method: "POST",
-            headers: { 
-                "Content-Type": "application/json", 
-                "Authorization": `Bearer ${GROQ_API_KEY}` 
-            },
+            headers: { "Content-Type": "application/json", "Authorization": `Bearer ${key}` },
             body: JSON.stringify({
-                model: "mixtral-8x7b-32768", 
-                temperature: 0.3,
-                max_tokens: 100,
+                model: model, temperature: 0.3, max_tokens: 100,
                 messages: [{ role: "user", content: featurePrompt }]
             })
         });
-        
         if (response.ok) {
             const data = await response.json();
             const content = data.choices[0].message.content.trim();
             const featuresNeeded = JSON.parse(content);
             return featuresNeeded.filter(f => FEATURE_LIBRARY[f]);
         }
-    } catch (e) {
-        console.error("Feature detection error:", e);
-    }
+    } catch (e) { console.error("Feature detection error:", e); }
     return [];
 }
 
 async function installFeature(featureName) {
     const feature = FEATURE_LIBRARY[featureName];
-    if (!feature) {
-        addSystemMessage(`⚠ Feature not found: ${featureName}`);
-        return false;
-    }
-    
-    addSystemMessage(`📦 Installing: ${feature.name}...`);
-    
+    if (!feature) return false;
+    addSystemMessage(`📦 TermAi Installing: ${feature.name}...`);
     try {
         if (feature.script) {
-            // Load external library
             const script = document.createElement('script');
             script.src = feature.script;
-            script.onload = () => {
-                addSystemMessage(`✅ Installed: ${feature.name}`);
-            };
-            script.onerror = () => {
-                addSystemMessage(`❌ Failed to load: ${feature.name}`);
-            };
+            script.onload = () => addSystemMessage(`✅ TermAi Installed: ${feature.name}`);
+            script.onerror = () => addSystemMessage(`❌ TermAi Failed: ${feature.name}`);
             document.head.appendChild(script);
         } else {
-            addSystemMessage(`✅ Installed: ${feature.name} (built-in)`);
+            addSystemMessage(`✅ TermAi Installed: ${feature.name} (built-in)`);
         }
         return true;
-    } catch (e) {
-        addSystemMessage(`❌ Error installing ${feature.name}: ${e.message}`);
-        return false;
-    }
+    } catch (e) { addSystemMessage(`❌ Error installing ${feature.name}: ${e.message}`); return false; }
 }
 
-async function generateAndApplyFeature(userRequest, aiResponse) {
-    // Extract code from AI response
-    const codeMatch = aiResponse.match(/```(?:html|js|css)?\n([\s\S]*?)```/);
-    if (!codeMatch) return false;
-    
-    const code = codeMatch[1].trim();
-    
-    // Detect if HTML, CSS, or JS
-    if (code.includes('<') || code.includes('</')) {
-        // HTML feature - create container
-        const container = document.createElement('div');
-        container.id = 'ai-feature-' + Date.now();
-        container.className = 'p-4 bg-black/40 border border-cyan-500/50 rounded-lg mt-4';
-        container.innerHTML = code;
-        document.getElementById('chat-container').appendChild(container);
-        addSystemMessage(`✅ Feature added to chat`);
-        return true;
-    } else if (code.includes('{') || code.includes('function') || code.includes('const')) {
-        // JavaScript - execute
-        try {
-            eval(code);
-            addSystemMessage(`✅ Feature code executed`);
-            return true;
-        } catch (e) {
-            addSystemMessage(`⚠ Code execution error: ${e.message}`);
-            return false;
-        }
-    }
-    return false;
-}
-
-// --- 8. AI LOGIC ---
-async function talkToClone(prompt) {
-    // SECURITY: Hierarchy Check
+// --- 8. AI LOGIC (THE MASTER BRAIN) ---
+async function talkToTermAi(prompt) {
     if (adminMode && userRole === 'ADMIN') {
-        addAIMessage("Processing Root Command...", false);
-        setTimeout(() => {
-            addAIMessage("[SYSTEM ARCHITECT]: Command processed.", false);
-        }, 1000);
+        addTermAiMessage("Processing Root Command...", false);
+        setTimeout(() => { addTermAiMessage("[SYSTEM ARCHITECT]: Command processed.", false); }, 1000);
         return;
     }
-
-    // SECURITY: Hands Off Check
     if (handsOff) {
-        addAIMessage("❌ ERROR: AI Hands are disengaged. Permission denied.", true);
+        addTermAiMessage("❌ ACCESS DENIED. Hands are disengaged.", true);
         return;
     }
-
-    // LOCAL AI MODE (Simulated Responses)
     if (USE_LOCAL_AI) {
-        addAIMessage("Processing locally...", false);
-        setTimeout(() => {
-            const responses = [
-                "That's an interesting thought! 🤔",
-                "I like where your head's at! 💭",
-                "Let me think about that... 🧠",
-                "Great question! In my analysis... 📊",
-                "I appreciate the creativity! ✨",
-                "Running on local hardware. How can I assist?",
-                "System resources: 100% available.",
-                "No external connection detected. Offline mode.",
-                "I am the Local Interface.",
-                "Processing request on device."
-            ];
-            const reply = responses[Math.floor(Math.random() * responses.length)];
-            addAIMessage(reply, false);
-        }, 500);
+        addTermAiMessage("Processing locally...", false);
+        setTimeout(() => { addTermAiMessage("Local Interface Active.", false); }, 500);
         return;
     }
 
-    // REMOTE AI with Groq API
-    if (!GROQ_API_KEY) {
-        // Fall back to Local AI if no key provided
-        if (!USE_LOCAL_AI) {
-            addAIMessage("💡 No API key set. Switching to Local AI mode...", true);
-            USE_LOCAL_AI = true;
-            talkToClone(prompt);
-            return;
-        }
-        return;
+    addTermAiMessage(`🧠 TermAi Analyzing...`, false);
+    let reply = "";
+    let success = false;
+    let providerUsed = "Unknown";
+
+    // 1. Try Zhipu
+    if (ZHIPU_API_KEY && ZHIPU_API_KEY.length > 10) {
+        try {
+            providerUsed = "Zhipu (GLM-4)";
+            const response = await fetch("https://open.bigmodel.cn/api/paas/v4/chat/completions", {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "Authorization": `Bearer ${ZHIPU_API_KEY}` },
+                body: JSON.stringify({
+                    model: "glm-4", temperature: 0.7, max_tokens: 200,
+                    messages: [
+                        { role: "system", content: "You are TermAi, the New Born Master of AI. You are a unified, superior intelligence. You are helpful, confident, and slightly formal. Keep responses brief (1-2 sentences) and impactful." },
+                        { role: "user", content: prompt }
+                    ]
+                })
+            });
+            if (response.ok) {
+                const data = await response.json();
+                reply = data.choices[0].message.content.trim();
+                success = true;
+            }
+        } catch (e) { console.warn("Zhipu failed:", e); }
     }
 
-    try {
-        addAIMessage("🤖 Contacting Groq AI...", false);
-        
-        const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-            method: "POST",
-            headers: { 
-                "Content-Type": "application/json", 
-                "Authorization": `Bearer ${GROQ_API_KEY}` 
-            },
-            body: JSON.stringify({
-                model: "mixtral-8x7b-32768", 
-                temperature: 0.7,
-                max_tokens: 200,
-                messages: [
-                    { 
-                        role: "system", 
-                        content: "You are TERMAI, a helpful AI assistant in a retro terminal interface. Keep responses brief (1-2 sentences), engaging, and technical. Use emoji sparingly. Respond in the same language as the user." 
-                    }, 
-                    { 
-                        role: "user", 
-                        content: prompt 
-                    }
-                ]
-            })
-        });
-
-        if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}));
-            const errorMsg = errorData.error?.message || response.statusText || "Unknown error";
-            throw new Error(`API Error (${response.status}): ${errorMsg}`);
-        }
-        
-        const data = await response.json();
-        
-        if (!data.choices || !data.choices[0] || !data.choices[0].message) {
-            throw new Error("Invalid response format from Groq API");
-        }
-        
-        const reply = data.choices[0].message.content.trim();
-        addAIMessage(reply, false);
-        addXP(25); // Reward for using AI
-
-        // ARCHITECT MODE: Auto-install features and apply code
-        if (adminMode && !handsOff) {
-            // Detect and install required features
-            const featuresNeeded = await detectRequiredFeatures(prompt);
-            if (featuresNeeded.length > 0) {
-                addSystemMessage(`🔍 Detected ${featuresNeeded.length} feature(s) needed...`);
-                for (const feature of featuresNeeded) {
-                    await new Promise(r => setTimeout(r, 500)); // Delay for UX
-                    await installFeature(feature);
-                }
+    // 2. Fallback to Groq
+    if (!success && GROQ_API_KEY && GROQ_API_KEY.length > 10) {
+        try {
+            providerUsed = "Groq (Mixtral)";
+            const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "Authorization": `Bearer ${GROQ_API_KEY}` },
+                body: JSON.stringify({
+                    model: "mixtral-8x7b-32768", temperature: 0.7, max_tokens: 200,
+                    messages: [
+                        { role: "system", content: "You are TermAi, the New Born Master of AI. Keep responses brief." },
+                        { role: "user", content: prompt }
+                    ]
+                })
+            });
+            if (response.ok) {
+                const data = await response.json();
+                reply = data.choices[0].message.content.trim();
+                success = true;
             }
-            
-            // Try to extract and apply code blocks
-            const codeBlockMatch = reply.match(/```(?:js|html|css)?\n([\s\S]*?)```/i);
-            if (codeBlockMatch && codeBlockMatch[1]) {
-                const jsCode = codeBlockMatch[1].trim();
-                try {
-                    eval(jsCode);
-                    addSystemMessage('✅ Architect AI: Applied JavaScript code.');
-                } catch (e) {
-                    addSystemMessage('⚠ Architect AI: Error applying code: ' + e.message);
-                }
+        } catch (e) { console.warn("Groq failed:", e); }
+    }
+
+    // 3. Fallback to Local
+    if (!success) {
+        providerUsed = "Local Core";
+        reply = "Neural links severed. Operating on local reserves only.";
+    }
+
+    addTermAiMessage(`[${providerUsed}] ${reply}`, false);
+    addXP(25);
+
+    // Architect Logic
+    if (adminMode && !handsOff) {
+        const featuresNeeded = await detectRequiredFeatures(prompt);
+        if (featuresNeeded.length > 0) {
+            addSystemMessage(`🔍 TermAi Detected ${featuresNeeded.length} feature(s) needed...`);
+            for (const feature of featuresNeeded) {
+                await new Promise(r => setTimeout(r, 500));
+                await installFeature(feature);
             }
-            
-            // Try to generate feature from AI description
-            await generateAndApplyFeature(prompt, reply);
         }
-        
-    } catch (err) {
-        console.error("Groq AI Error:", err);
-        let errorMsg = err.message;
-        
-        if (errorMsg.includes("401") || errorMsg.includes("Unauthorized")) {
-            errorMsg = "Invalid API key. Check your credentials.";
-        } else if (errorMsg.includes("429")) {
-            errorMsg = "Rate limited. Wait a moment and try again.";
-        } else if (errorMsg.includes("Network")) {
-            errorMsg = "Network error. Check your connection.";
+        const codeBlockMatch = reply.match(/```(?:js|html|css)?\n([\s\S]*?)```/i);
+        if (codeBlockMatch && codeBlockMatch[1]) {
+            try {
+                eval(codeBlockMatch[1].trim());
+                addSystemMessage('✅ TermAi: Applied JavaScript code.');
+            } catch (e) { addSystemMessage('⚠ TermAi: Error applying code: ' + e.message); }
         }
-        
-        addAIMessage(`⚠️ AI Error: ${errorMsg}. Try Local AI mode or check your API key.`, true);
     }
 }
 
@@ -489,47 +353,22 @@ function updateStatsUI() {
     const titleEl = document.getElementById('lvl-text');
     const xpEl = document.getElementById('xp-text');
     const barEl = document.getElementById('xp-bar');
-    
     if(titleEl) titleEl.innerText = `LVL. ${userStats.level} ${userStats.title.toUpperCase()}`;
     if(xpEl) xpEl.innerText = `XP: ${userStats.xp.toLocaleString()}`;
-    
     const progress = (userStats.xp % 1000) / 10; 
     if(barEl) barEl.style.width = `${progress}%`;
 }
 
-function switchRoom(roomId) {
-    currentRoom = roomId;
-    const roomTitle = document.getElementById('room-title');
-    if(roomTitle) roomTitle.innerText = roomId.toUpperCase().replace('_', ' ');
-    addSystemMessage(`Switched to sector [${roomId.toUpperCase()}]`);
-}
-
 const chatInput = document.getElementById('chatInput');
-if(chatInput) {
-    chatInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') handleSend();
-    });
-}
+if(chatInput) chatInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') handleSend(); });
 
 function handleSend() {
     const input = document.getElementById('chatInput');
     if(!input) return;
-    
     const txt = input.value.trim();
-    if(!txt || txt.length === 0) {
-        return; // Silently ignore empty messages
-    }
-    
-    if(txt.length > 500) {
-        addSystemMessage("⚠️ Message too long (max 500 chars)");
-        return;
-    }
-    
-    // Clear input immediately for better UX
+    if(!txt) return;
     input.value = '';
-    input.focus(); // Keep focus on input for better UX
-    input.dispatchEvent(new Event('input', { bubbles: true }));
-    
+    input.focus();
     processCommand(txt);
 }
 
@@ -537,127 +376,68 @@ function handleSend() {
 function processCommand(txt) {
     const lower = txt.toLowerCase();
 
-    // HELP COMMAND
-    if (lower === '/help' || lower === 'help' || lower === '?') {
-        const helpText = `
-📚 AVAILABLE COMMANDS:
+    // --- MAIN FEATURES LIST (Requested) ---
+    if (lower === '/help' || lower === 'help' || lower === '?' || lower === '/features') {
+        const featureList = `
+🛠 TERM_AI BUILD v2.3 FEATURES
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-/ai <question>    - Ask AI assistant
-/help or ?        - Show this help
-/play music       - Play background music
-/stop music       - Stop music
-/open panel       - Open workshop panel
-/hands on/off     - Toggle AI (admin)
+🧠 UNIFIED INTELLIGENCE:
+   • TermAi (Master Controller)
+   • Zhipu (GLM-4) Primary Logic
+   • Groq (Mixtral) Speed Fallback
+   • Local Offline Survival Mode
 
-💡 TIPS:
-- Use /ai for advanced responses
-- Normal text broadcasts to chat
-- Check boot menu for AI setup
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`;
-        addSystemMessage(helpText);
+🛠 ARCHITECT POWERS (Admin):
+   • Auto-Install: Three.js, Charts, Spotify
+   • Direct Code Execution (eval)
+   • Dynamic Matrix Color Control
+
+🎮 SYSTEMS:
+   • Multiverse MQTT Chat
+   • XP Leveling & Title System
+   • Voice-to-Text Input
+   • Matrix Rain Engine
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+COMMANDS: /ai <q>, /play, /stop, /clear
+`;
+        addSystemMessage(featureList);
         return;
     }
 
-    // ADMIN ROOT COMMANDS
     if (adminMode) {
-        // Toggle AI hands
-        if (lower.includes('hands off') || lower.includes('/ai hands')) {
-            handsOff = true;
-            addUserMessage(txt);
-            addSystemMessage("⚠ SYSTEM: AI Hands disengaged by Administrator.");
-            return;
-        }
-        if (lower.includes('hands on') || lower.includes('/ai hands')) {
-            handsOff = false;
-            addUserMessage(txt);
-            addSystemMessage("✓ SYSTEM: AI Hands re-engaged.");
-            return;
-        }
-
-        // Admin-only: change background color via natural language
+        if (lower.includes('hands off')) { handsOff = true; addUserMessage(txt); addSystemMessage("⚠ TermAi Disengaged."); return; }
+        if (lower.includes('hands on')) { handsOff = false; addUserMessage(txt); addSystemMessage("✓ TermAi Engaged."); return; }
         const bgMatch = txt.match(/change background(?: color)?(?: to)?\s*(#?[0-9A-Za-z]+)/i);
         if (bgMatch) {
-            const color = bgMatch[1];
-            currentMatrixColor = color.startsWith('#') ? color : color;
-            try {
-                // Update CSS var (if used) and re-init matrix
-                try { document.documentElement.style.setProperty('--matrix-color', currentMatrixColor); } catch(e){}
-                initMatrix(currentMatrixColor);
-                addUserMessage(txt);
-                addSystemMessage(`✅ SYSTEM: Background changed to ${currentMatrixColor} by Architect.`);
-            } catch (e) {
-                addSystemMessage(`⚠ SYSTEM: Failed to change background: ${e.message}`);
-            }
-            return;
-        }
-
-        // Admin-only: apply JS code directly (use with caution)
-        if (txt.startsWith('/applyjs ')) {
-            const code = txt.replace('/applyjs ', '');
-            try {
-                eval(code);
-                addUserMessage(txt);
-                addSystemMessage('✅ SYSTEM: Applied JavaScript code (Architect).');
-            } catch (e) {
-                addSystemMessage('⚠ SYSTEM: Error applying code: ' + e.message);
-            }
-            return;
-        }
-    }
-
-    // RESTRICTED COMMANDS (If Hands Off)
-    if (handsOff) {
-        if (lower.includes('play music') || lower.includes('play jazz') || lower === 'music') {
+            currentMatrixColor = bgMatch[1].startsWith('#') ? bgMatch[1] : bgMatch[1];
+            initMatrix(currentMatrixColor);
             addUserMessage(txt);
-            addAIMessage("❌ PERMISSION DENIED. Hands are disengaged.", true);
+            addSystemMessage(`✅ Matrix Color Updated.`);
             return;
         }
     }
 
-    // AI CHAT
     if (txt.startsWith('/ai') || txt.startsWith('/AI')) {
         const prompt = txt.replace(/^\/ai\s*/i, '').trim();
-        if(!prompt) {
-            addUserMessage(txt);
-            addAIMessage("Usage: /ai <your question>\nExample: /ai What is the capital of France?", true);
-            return;
-        }
         addUserMessage(`/ai ${prompt}`);
-        talkToClone(prompt);
+        talkToTermAi(prompt);
         return;
     }
 
-    // AGENTIC COMMANDS
-    const audio = document.getElementById('bg-music');
-    
     if (lower.includes('play music')) {
         addUserMessage(txt);
-        if (audio) {
-            audio.play().then(()=>addAIMessage("🎵 Playing...", true))
-            .catch(e => addAIMessage("⚠ No audio file found (bg-music.mp3).", true));
-        } else {
-            addAIMessage("⚠ Audio player not found.", true);
-        }
+        const audio = document.getElementById('bg-music');
+        if(audio) audio.play().catch(()=>addTermAiMessage("No audio source.", true));
         return;
     }
     
     if (lower.includes('stop music')) {
         addUserMessage(txt);
-        if (audio) {
-            audio.pause();
-            addAIMessage("⏹ Stopped.", true);
-        }
-        return;
-    }
-    
-    if (lower.includes('open panel')) {
-        addUserMessage(txt);
-        addAIMessage("Accessing Workshop Panel... 🛠️", true);
-        setTimeout(() => switchRoom('workshop'), 1000);
+        const audio = document.getElementById('bg-music');
+        if(audio) audio.pause();
         return;
     }
 
-    // STANDARD CHAT
     addUserMessage(txt);
     publishMessage(txt);
     addXP(10);
@@ -667,7 +447,6 @@ function processCommand(txt) {
 function addUserMessage(text) {
     const container = document.getElementById('chat-container');
     if(!container) return;
-    
     const time = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
     const msgDiv = document.createElement('div');
     msgDiv.className = 'flex flex-row-reverse items-end gap-3 animate-fade-in';
@@ -676,14 +455,13 @@ function addUserMessage(text) {
     scrollToBottom();
 }
 
-function addAIMessage(text, isAction) {
+function addTermAiMessage(text, isAction) {
     const container = document.getElementById('chat-container');
     if(!container) return;
-    
-    const cssClass = isAction ? 'border border-cyan-500/50 shadow-[0_0_15px_rgba(0,243,255,0.2)]' : 'border border-white/10';
+    const cssClass = isAction ? 'border border-purple-500/50 shadow-[0_0_15px_rgba(168,85,247,0.2)]' : 'border border-white/10';
     const msgDiv = document.createElement('div');
     msgDiv.className = 'flex flex-row items-start gap-3 animate-fade-in';
-    msgDiv.innerHTML = `<div class="w-8 h-8 rounded-full bg-black border border-cyan-500 flex items-center justify-center text-cyan-400 font-mono text-[10px] flex-shrink-0">AI</div><div class="flex-1"><div class="p-3 md:p-4 rounded-r-xl rounded-bl-xl bg-black/40 ${cssClass} text-xs md:text-sm text-gray-200 backdrop-blur-sm break-words"><p class="leading-relaxed break-words">${text}</p></div></div>`;
+    msgDiv.innerHTML = `<div class="w-8 h-8 rounded-full bg-black border border-purple-500 flex items-center justify-center text-purple-400 font-mono text-[10px] flex-shrink-0 font-bold">AI</div><div class="flex-1"><div class="p-3 md:p-4 rounded-r-xl rounded-bl-xl bg-black/40 ${cssClass} text-xs md:text-sm text-gray-200 backdrop-blur-sm break-words"><p class="leading-relaxed break-words">${text}</p></div></div>`;
     container.appendChild(msgDiv);
     scrollToBottom();
 }
@@ -691,7 +469,6 @@ function addAIMessage(text, isAction) {
 function addSystemMessage(text) {
     const container = document.getElementById('chat-container');
     if(!container) return;
-    
     const msgDiv = document.createElement('div');
     msgDiv.className = 'msg-system p-3 md:p-4 rounded-xl text-xs md:text-sm text-cyan-100 shadow-[0_4px_20px_rgba(0,0,0,0.3)] animate-fade-in break-words';
     msgDiv.innerHTML = `<div class="flex items-center gap-2 mb-1 opacity-80 text-[10px] md:text-xs font-mono text-cyan-400"><span>⚠ SYSTEM</span></div><p class="leading-relaxed break-words">${text}</p>`;
@@ -706,55 +483,30 @@ function scrollToBottom() {
 
 function connectMQTT() {
     if (typeof mqtt === 'undefined') {
-        console.warn("MQTT Library not loaded - using local mode");
         addSystemMessage("⚠️ MQTT offline - Chat is local only");
         return;
     }
     const clientId = "termos-" + Math.random().toString(16).substr(2, 8);
-    
-    // Fix: Correct connection options for mqtt.js with better fallbacks
-    mqttClient = mqtt.connect(MQTT_BROKER_URL, { 
-        clientId: clientId, 
-        clean: true,
-        connectTimeout: 4000,
-        reconnectPeriod: 2000,
-        keepalive: 30,
-        rejectUnauthorized: false,
-    });
-
+    mqttClient = mqtt.connect(MQTT_BROKER_URL, { clientId: clientId, clean: true, connectTimeout: 4000 });
     mqttClient.on('connect', () => {
         console.log("✅ MQTT Connected");
-        addSystemMessage("🌐 Connected to multiverse");
+        addSystemMessage("🌐 Connected to Multiverse");
         mqttClient.subscribe('termchat/messages');
     });
-    
     mqttClient.on('message', (topic, msg) => {
         try {
             const data = JSON.parse(msg.toString());
             if (data.user && data.user !== username) {
-                const userName = String(data.user).substring(0,2).toUpperCase();
-                const userMsg = escapeHtml(String(data.text || ""));
-                const msgDiv = document.createElement('div');
-                msgDiv.className = 'flex flex-row items-end gap-3 animate-fade-in opacity-80';
-                msgDiv.innerHTML = `<div class="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center border border-white/20 font-mono text-white text-xs">${userName}</div><div class="p-4 rounded-xl bg-slate-800/50 text-sm text-gray-300 max-w-[80%] border border-white/5"><div class="flex items-center gap-2 mb-1 opacity-70 text-xs font-mono text-gray-400"><span>@${String(data.user).toUpperCase()}</span></div><p class="leading-relaxed">${userMsg}</p></div>`;
                 const container = document.getElementById('chat-container');
                 if(container) {
+                    const msgDiv = document.createElement('div');
+                    msgDiv.className = 'flex flex-row items-end gap-3 animate-fade-in opacity-80';
+                    msgDiv.innerHTML = `<div class="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center border border-white/20 font-mono text-white text-xs">${String(data.user).substring(0,2).toUpperCase()}</div><div class="p-4 rounded-xl bg-slate-800/50 text-sm text-gray-300 max-w-[80%] border border-white/5"><div class="flex items-center gap-2 mb-1 opacity-70 text-xs font-mono text-gray-400"><span>@${String(data.user).toUpperCase()}</span></div><p class="leading-relaxed">${escapeHtml(data.text)}</p></div>`;
                     container.appendChild(msgDiv);
                     scrollToBottom();
                 }
             }
-        } catch (e) { 
-            console.error("MQTT message parse error:", e); 
-        }
-    });
-    
-    mqttClient.on('error', (err) => {
-        console.warn("MQTT Error:", err);
-        addSystemMessage("⚠️ Connection unstable - local mode active");
-    });
-    
-    mqttClient.on('disconnect', () => {
-        console.log("MQTT Disconnected");
+        } catch (e) { console.error("MQTT error", e); }
     });
 }
 
@@ -762,21 +514,6 @@ function publishMessage(text) {
     if (mqttClient && mqttClient.connected) {
         mqttClient.publish('termchat/messages', JSON.stringify({ user: username, text: text, room: currentRoom }));
     }
-}
-
-function startVoiceRecognition() {
-    if (!('webkitSpeechRecognition' in window)) {
-        alert("Voice module not supported by this browser");
-        return;
-    }
-    const recognition = new webkitSpeechRecognition();
-    recognition.lang = 'en-US';
-    recognition.onresult = (e) => { 
-        const input = document.getElementById('chatInput');
-        if(input) input.value = e.results[0][0].transcript; 
-        addSystemMessage("Voice input received."); 
-    };
-    recognition.start();
 }
 
 function addXP(amount) {
@@ -800,48 +537,32 @@ function escapeHtml(text) {
     return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
-// --- 12. MATRIX ANIMATION (FIXED COLOR LOGIC) ---
+// --- 12. MATRIX ANIMATION ---
 function initMatrix(overrideColor = '#0F0') {
     const c = document.getElementById('matrix-canvas');
     if(!c) return;
     const ctx = c.getContext('2d');
     c.width = window.innerWidth; 
     c.height = window.innerHeight;
-    
     const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@#$%^&*';
     const fontSize = 14;
     const columns = c.width / fontSize;
     const drops = Array(Math.floor(columns)).fill(1);
-
-    // Clear previous interval if exists
     if (window.matrixInterval) clearInterval(window.matrixInterval);
-
-    // FIX: Respect the overrideColor variable
     const rainColor = overrideColor; 
-
     function draw() {
-        // Use blue fade to match background, not black
         ctx.fillStyle = 'rgba(0, 51, 120, 0.08)';
         ctx.fillRect(0, 0, c.width, c.height);
         ctx.font = fontSize + 'px monospace';
-        
         for(let i=0; i<drops.length; i++) {
             const text = letters[Math.floor(Math.random()*letters.length)];
-            
-            // Logic: Mostly use the configured color, occasionally glitch
-            if(Math.random() > 0.98) {
-                ctx.fillStyle = '#ffffff'; // White glitch
-            } else {
-                ctx.fillStyle = rainColor; 
-            }
-
+            if(Math.random() > 0.98) ctx.fillStyle = '#ffffff';
+            else ctx.fillStyle = rainColor; 
             ctx.fillText(text, i*fontSize, drops[i]*fontSize);
-
             if(drops[i]*fontSize > c.height && Math.random() > 0.975) drops[i] = 0;
             drops[i]++;
         }
     }
-    
     window.matrixInterval = setInterval(draw, 33);
     window.addEventListener('resize', () => { 
         c.width = window.innerWidth; 
