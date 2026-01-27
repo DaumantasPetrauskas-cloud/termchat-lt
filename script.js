@@ -24,9 +24,48 @@ let currentMatrixColor = '#0F0'; // Default Green
 
 // --- 4. INITIALIZATION ---
 window.addEventListener('load', () => {
+    optimizeForMobile();
     initMatrix(currentMatrixColor);
     runTerminalBoot();
 });
+
+// Mobile and Touch Optimization
+function optimizeForMobile() {
+    // Fix viewport on mobile
+    const viewport = document.querySelector('meta[name="viewport"]');
+    if (viewport) {
+        viewport.setAttribute('content', 'width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no');
+    }
+    
+    // Prevent zoom on input focus
+    document.addEventListener('touchmove', (e) => {
+        if (e.target.closest('input, button, textarea')) {
+            e.preventDefault();
+        }
+    }, { passive: false });
+    
+    // Handle device orientation changes
+    window.addEventListener('orientationchange', () => {
+        setTimeout(() => {
+            document.getElementById('chat-container')?.scrollTop = document.getElementById('chat-container')?.scrollHeight || 0;
+        }, 100);
+    });
+    
+    // Improve scrolling performance
+    const styles = document.createElement('style');
+    styles.textContent = `
+        #chat-container {
+            -webkit-overflow-scrolling: touch;
+            scroll-behavior: smooth;
+        }
+        input, button {
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+        }
+    `;
+    document.head.appendChild(styles);
+}
 
 // --- 5. TERMINAL BOOT LOGIC ---
 async function runTerminalBoot() {
@@ -355,7 +394,7 @@ function addUserMessage(text) {
     if(!container) return;
     
     const time = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-    const html = `<div class="flex flex-row-reverse items-end gap-3 animate-fade-in"><div class="w-8 h-8 rounded-full bg-gradient-to-tr from-green-400 to-emerald-600 flex items-center justify-center border border-white/20 font-mono text-black text-xs font-bold">ME</div><div class="msg-user p-4 rounded-l-xl rounded-br-xl text-sm text-green-100 shadow-[0_4px_20px_rgba(0,0,0,0.3)] max-w-[80%]"><div class="flex items-center gap-2 mb-1 opacity-80 text-xs font-mono text-green-400"><span>@${username.toUpperCase()}</span><span>${time}</span></div><p class="leading-relaxed text-gray-100">${escapeHtml(text)}</p></div></div>`;
+    const html = `<div class="flex flex-row-reverse items-end gap-3 animate-fade-in"><div class="w-8 h-8 rounded-full bg-gradient-to-tr from-green-400 to-emerald-600 flex items-center justify-center border border-white/20 font-mono text-black text-xs font-bold flex-shrink-0">ME</div><div class="msg-user p-3 md:p-4 rounded-l-xl rounded-br-xl text-xs md:text-sm text-green-100 shadow-[0_4px_20px_rgba(0,0,0,0.3)] max-w-[80%] break-words"><div class="flex items-center gap-2 mb-1 opacity-80 text-[10px] md:text-xs font-mono text-green-400"><span>@${username.toUpperCase()}</span><span>${time}</span></div><p class="leading-relaxed text-gray-100 break-words">${escapeHtml(text)}</p></div></div>`;
     container.insertAdjacentHTML('beforeend', html);
     scrollToBottom();
 }
@@ -365,7 +404,7 @@ function addAIMessage(text, isAction) {
     if(!container) return;
     
     const cssClass = isAction ? 'border border-cyan-500/50 shadow-[0_0_15px_rgba(0,243,255,0.2)]' : 'border border-white/10';
-    const html = `<div class="flex flex-row items-start gap-3 animate-fade-in"><div class="w-8 h-8 rounded-full bg-black border border-cyan-500 flex items-center justify-center text-cyan-400 font-mono text-[10px]">AI</div><div class="flex-1"><div class="p-4 rounded-r-xl rounded-bl-xl bg-black/40 ${cssClass} text-sm text-gray-200 backdrop-blur-sm"><p class="leading-relaxed">${text}</p></div></div>`;
+    const html = `<div class="flex flex-row items-start gap-3 animate-fade-in"><div class="w-8 h-8 rounded-full bg-black border border-cyan-500 flex items-center justify-center text-cyan-400 font-mono text-[10px] flex-shrink-0">AI</div><div class="flex-1"><div class="p-3 md:p-4 rounded-r-xl rounded-bl-xl bg-black/40 ${cssClass} text-xs md:text-sm text-gray-200 backdrop-blur-sm break-words"><p class="leading-relaxed break-words">${text}</p></div></div>`;
     container.insertAdjacentHTML('beforeend', html);
     scrollToBottom();
 }
@@ -374,7 +413,7 @@ function addSystemMessage(text) {
     const container = document.getElementById('chat-container');
     if(!container) return;
     
-    const html = `<div class="msg-system p-4 rounded-xl text-sm text-cyan-100 shadow-[0_4px_20px_rgba(0,0,0,0.3)] animate-fade-in"><div class="flex items-center gap-2 mb-1 opacity-80 text-xs font-mono text-cyan-400"><span>⚠ SYSTEM</span></div><p class="leading-relaxed">${text}</p></div>`;
+    const html = `<div class="msg-system p-3 md:p-4 rounded-xl text-xs md:text-sm text-cyan-100 shadow-[0_4px_20px_rgba(0,0,0,0.3)] animate-fade-in break-words"><div class="flex items-center gap-2 mb-1 opacity-80 text-[10px] md:text-xs font-mono text-cyan-400"><span>⚠ SYSTEM</span></div><p class="leading-relaxed break-words">${text}</p></div>`;
     container.insertAdjacentHTML('beforeend', html);
     scrollToBottom();
 }
