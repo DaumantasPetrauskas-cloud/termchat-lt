@@ -240,14 +240,31 @@ async function talkToClone(prompt) {
         return;
     }
 
+    // LOCAL AI MODE (Simulated Responses)
+    if (USE_LOCAL_AI) {
+        addAIMessage("Processing locally...", false);
+        setTimeout(() => {
+            const responses = [
+                "That's an interesting thought! 🤔",
+                "I like where your head's at! 💭",
+                "Let me think about that... 🧠",
+                "Great question! In my analysis... 📊",
+                "I appreciate the creativity! ✨"
+            ];
+            const reply = responses[Math.floor(Math.random() * responses.length)];
+            addAIMessage(reply, false);
+        }, 500);
+        return;
+    }
+
     // REMOTE AI
     if (!GROQ_API_KEY) {
-        addAIMessage("❌ CONFIG ERROR: API Key missing.", true);
+        addAIMessage("💡 Tip: Enter your API key for advanced AI, or use Local AI mode", true);
         return;
     }
 
     try {
-        addAIMessage("Processing...", false);
+        addAIMessage("🤖 Processing with remote AI...", false);
         
         const req = await fetch("https://api.groq.com/openai/v1/chat/completions", {
             method: "POST",
@@ -257,22 +274,28 @@ async function talkToClone(prompt) {
             },
             body: JSON.stringify({
                 model: "llama-3.3-70b-versatile", 
-                temperature: 0.1,
-                max_tokens: 60,
+                temperature: 0.7,
+                max_tokens: 150,
                 messages: [
-                    { role: "system", content: "You are a helpful AI assistant. Answer briefly." }, 
+                    { role: "system", content: "You are TERMAI, a helpful AI assistant in a retro terminal interface. Keep responses brief and engaging. Respond in the same language as the user." }, 
                     { role: "user", content: prompt }
                 ]
             })
         });
 
-        if (!req.ok) throw new Error(`API Error: ${req.status}`);
+        if (!req.ok) {
+            throw new Error(`API Error: ${req.status} - ${req.statusText}`);
+        }
         const json = await req.json();
-        const reply = json.choices[0].message.content;
+        if (!json.choices || !json.choices[0]) {
+            throw new Error("Invalid API response format");
+        }
+        const reply = json.choices[0].message.content || "No response received";
         addAIMessage(reply, false);
         
     } catch (err) {
-        addAIMessage(`❌ CONNECTION FAILED: ${err.message}`, true);
+        console.error("AI Error:", err);
+        addAIMessage(`⚠️ AI unavailable: ${err.message || "Network error"}. Try Local AI mode.`, true);
     }
 }
 
@@ -308,9 +331,20 @@ function handleSend() {
     if(!input) return;
     
     const txt = input.value.trim();
-    if(!txt) return;
+    if(!txt || txt.length === 0) {
+        return; // Silently ignore empty messages
+    }
     
+    if(txt.length > 500) {
+        addSystemMessage("⚠️ Message too long (max 500 chars)");
+        return;
+    }
+    
+    // Clear input immediately for better UX
     input.value = '';
+    input.focus(); // Keep focus on input for better UX
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    
     processCommand(txt);
 }
 
@@ -394,8 +428,10 @@ function addUserMessage(text) {
     if(!container) return;
     
     const time = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-    const html = `<div class="flex flex-row-reverse items-end gap-3 animate-fade-in"><div class="w-8 h-8 rounded-full bg-gradient-to-tr from-green-400 to-emerald-600 flex items-center justify-center border border-white/20 font-mono text-black text-xs font-bold flex-shrink-0">ME</div><div class="msg-user p-3 md:p-4 rounded-l-xl rounded-br-xl text-xs md:text-sm text-green-100 shadow-[0_4px_20px_rgba(0,0,0,0.3)] max-w-[80%] break-words"><div class="flex items-center gap-2 mb-1 opacity-80 text-[10px] md:text-xs font-mono text-green-400"><span>@${username.toUpperCase()}</span><span>${time}</span></div><p class="leading-relaxed text-gray-100 break-words">${escapeHtml(text)}</p></div></div>`;
-    container.insertAdjacentHTML('beforeend', html);
+    const msgDiv = document.createElement('div');
+    msgDiv.className = 'flex flex-row-reverse items-end gap-3 animate-fade-in';
+    msgDiv.innerHTML = `<div class="w-8 h-8 rounded-full bg-gradient-to-tr from-green-400 to-emerald-600 flex items-center justify-center border border-white/20 font-mono text-black text-xs font-bold flex-shrink-0">ME</div><div class="msg-user p-3 md:p-4 rounded-l-xl rounded-br-xl text-xs md:text-sm text-green-100 shadow-[0_4px_20px_rgba(0,0,0,0.3)] max-w-[80%] break-words"><div class="flex items-center gap-2 mb-1 opacity-80 text-[10px] md:text-xs font-mono text-green-400"><span>@${username.toUpperCase()}</span><span>${time}</span></div><p class="leading-relaxed text-gray-100 break-words">${escapeHtml(text)}</p></div>`;
+    container.appendChild(msgDiv);
     scrollToBottom();
 }
 
@@ -404,8 +440,10 @@ function addAIMessage(text, isAction) {
     if(!container) return;
     
     const cssClass = isAction ? 'border border-cyan-500/50 shadow-[0_0_15px_rgba(0,243,255,0.2)]' : 'border border-white/10';
-    const html = `<div class="flex flex-row items-start gap-3 animate-fade-in"><div class="w-8 h-8 rounded-full bg-black border border-cyan-500 flex items-center justify-center text-cyan-400 font-mono text-[10px] flex-shrink-0">AI</div><div class="flex-1"><div class="p-3 md:p-4 rounded-r-xl rounded-bl-xl bg-black/40 ${cssClass} text-xs md:text-sm text-gray-200 backdrop-blur-sm break-words"><p class="leading-relaxed break-words">${text}</p></div></div>`;
-    container.insertAdjacentHTML('beforeend', html);
+    const msgDiv = document.createElement('div');
+    msgDiv.className = 'flex flex-row items-start gap-3 animate-fade-in';
+    msgDiv.innerHTML = `<div class="w-8 h-8 rounded-full bg-black border border-cyan-500 flex items-center justify-center text-cyan-400 font-mono text-[10px] flex-shrink-0">AI</div><div class="flex-1"><div class="p-3 md:p-4 rounded-r-xl rounded-bl-xl bg-black/40 ${cssClass} text-xs md:text-sm text-gray-200 backdrop-blur-sm break-words"><p class="leading-relaxed break-words">${text}</p></div></div>`;
+    container.appendChild(msgDiv);
     scrollToBottom();
 }
 
@@ -413,8 +451,10 @@ function addSystemMessage(text) {
     const container = document.getElementById('chat-container');
     if(!container) return;
     
-    const html = `<div class="msg-system p-3 md:p-4 rounded-xl text-xs md:text-sm text-cyan-100 shadow-[0_4px_20px_rgba(0,0,0,0.3)] animate-fade-in break-words"><div class="flex items-center gap-2 mb-1 opacity-80 text-[10px] md:text-xs font-mono text-cyan-400"><span>⚠ SYSTEM</span></div><p class="leading-relaxed break-words">${text}</p></div>`;
-    container.insertAdjacentHTML('beforeend', html);
+    const msgDiv = document.createElement('div');
+    msgDiv.className = 'msg-system p-3 md:p-4 rounded-xl text-xs md:text-sm text-cyan-100 shadow-[0_4px_20px_rgba(0,0,0,0.3)] animate-fade-in break-words';
+    msgDiv.innerHTML = `<div class="flex items-center gap-2 mb-1 opacity-80 text-[10px] md:text-xs font-mono text-cyan-400"><span>⚠ SYSTEM</span></div><p class="leading-relaxed break-words">${text}</p>`;
+    container.appendChild(msgDiv);
     scrollToBottom();
 }
 
@@ -425,40 +465,55 @@ function scrollToBottom() {
 
 function connectMQTT() {
     if (typeof mqtt === 'undefined') {
-        console.warn("MQTT Library not loaded");
+        console.warn("MQTT Library not loaded - using local mode");
+        addSystemMessage("⚠️ MQTT offline - Chat is local only");
         return;
     }
     const clientId = "termos-" + Math.random().toString(16).substr(2, 8);
     
-    // Fix: Correct connection options for mqtt.js
+    // Fix: Correct connection options for mqtt.js with better fallbacks
     mqttClient = mqtt.connect(MQTT_BROKER_URL, { 
         clientId: clientId, 
         clean: true,
         connectTimeout: 4000,
-        reconnectPeriod: 1000,
+        reconnectPeriod: 2000,
+        keepalive: 30,
+        rejectUnauthorized: false,
     });
 
     mqttClient.on('connect', () => {
-        console.log("MQTT Connected");
+        console.log("✅ MQTT Connected");
+        addSystemMessage("🌐 Connected to multiverse");
         mqttClient.subscribe('termchat/messages');
     });
     
     mqttClient.on('message', (topic, msg) => {
         try {
             const data = JSON.parse(msg.toString());
-            if (data.user !== username) {
-                const html = `<div class="flex flex-row items-end gap-3 animate-fade-in opacity-80"><div class="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center border border-white/20 font-mono text-white text-xs">${data.user.substring(0,2).toUpperCase()}</div><div class="p-4 rounded-xl bg-slate-800/50 text-sm text-gray-300 max-w-[80%] border border-white/5"><div class="flex items-center gap-2 mb-1 opacity-70 text-xs font-mono text-gray-400"><span>@${data.user.toUpperCase()}</span></div><p class="leading-relaxed">${escapeHtml(data.text)}</p></div></div>`;
+            if (data.user && data.user !== username) {
+                const userName = String(data.user).substring(0,2).toUpperCase();
+                const userMsg = escapeHtml(String(data.text || ""));
+                const msgDiv = document.createElement('div');
+                msgDiv.className = 'flex flex-row items-end gap-3 animate-fade-in opacity-80';
+                msgDiv.innerHTML = `<div class="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center border border-white/20 font-mono text-white text-xs">${userName}</div><div class="p-4 rounded-xl bg-slate-800/50 text-sm text-gray-300 max-w-[80%] border border-white/5"><div class="flex items-center gap-2 mb-1 opacity-70 text-xs font-mono text-gray-400"><span>@${String(data.user).toUpperCase()}</span></div><p class="leading-relaxed">${userMsg}</p></div>`;
                 const container = document.getElementById('chat-container');
                 if(container) {
-                    container.insertAdjacentHTML('beforeend', html);
+                    container.appendChild(msgDiv);
                     scrollToBottom();
                 }
             }
-        } catch (e) { console.error(e); }
+        } catch (e) { 
+            console.error("MQTT message parse error:", e); 
+        }
     });
     
     mqttClient.on('error', (err) => {
-        console.error("MQTT Error:", err);
+        console.warn("MQTT Error:", err);
+        addSystemMessage("⚠️ Connection unstable - local mode active");
+    });
+    
+    mqttClient.on('disconnect', () => {
+        console.log("MQTT Disconnected");
     });
 }
 

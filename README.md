@@ -48,7 +48,7 @@ Level 3: Hacker    Level 5: Wizard    Level 8: Ninja
 
 ## 🌌 Live Multiverse
 
-🚀 **Enter the Multiverse**: [https://dauptr.github.io/termchat-lt/](https://dauptr.github.io/termchat-lt/)
+🚀 **Enter the Multiverse**: [https://DaumantasPetrauskas-cloud.github.io/termchat-lt/](https://DaumantasPetrauskas-cloud.github.io/termchat-lt/)
 
 ### 🏠 Explore Themed Rooms
 - 📚 **Library** - Learn with AI Librarian
@@ -141,9 +141,33 @@ python -m http.server 8000
 
 ### Production Deployment
 1. **Frontend**: Deploy to GitHub Pages/Netlify (static PWA)
-2. **Backend**: Deploy to Render/Heroku (Python service)
+2. **Backend**: Deploy to Railway/Render/Heroku (Python service)
 3. **Database**: MongoDB Atlas for persistence
 4. **Docker**: Required for plugin system security
+
+## 🚀 Deployment Guides
+
+| Platform | Guide | Time |
+|----------|-------|------|
+| **GitHub + Railway** | [GITHUB_RAILWAY_SETUP.md](GITHUB_RAILWAY_SETUP.md) | 10 min |
+| **Railway Only** | [RAILWAY_DEPLOYMENT.md](RAILWAY_DEPLOYMENT.md) | 5 min |
+| **Other Platforms** | [DEPLOY.md](DEPLOY.md) | 10-15 min |
+
+### Quick Start
+```bash
+# Push to GitHub (auto-deploys frontend)
+git push origin main
+
+# Then set up Railway backend:
+# 1. Go to railway.app
+# 2. Sign in with GitHub
+# 3. Deploy from termchat-lt repo
+# 4. Add ZHIPU_API_KEY variable
+# 5. Click Deploy
+```
+
+**Frontend**: https://DaumantasPetrauskas-cloud.github.io/termchat-lt/  
+**Backend**: https://termchat-[randomid].railway.app (after Railway setup)
 
 ## 📊 System Status
 
