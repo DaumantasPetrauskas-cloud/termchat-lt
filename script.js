@@ -671,7 +671,8 @@ function initMatrix(overrideColor = '#0F0') {
     const rainColor = overrideColor; 
 
     function draw() {
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.05)';
+        // Use blue fade to match background, not black
+        ctx.fillStyle = 'rgba(0, 51, 120, 0.08)';
         ctx.fillRect(0, 0, c.width, c.height);
         ctx.font = fontSize + 'px monospace';
         
