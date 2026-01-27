@@ -154,6 +154,6 @@ const BROKER_HOST = "{\field{\*\fldinst{HYPERLINK "http://broker.emqx.io/"}}{\fl
 \cb3 input.addEventListener('keypress', function (e) \{\cb1 \
 \cb3 \'a0 \'a0 if (e.key === 'Enter') sendMessage();\cb1 \
 \cb3 \});\cb1 \
-\
+\ 
 \cb3 // Start Boot Sequence\cb1 \
 \cb3 window.onload = bootSystem;}
