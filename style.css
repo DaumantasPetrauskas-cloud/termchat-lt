@@ -15,6 +15,8 @@ select {
 
 /* Prevent text selection during interaction */
 body {
+    background-color: #0066cc;
+    background: linear-gradient(135deg, #0066cc 0%, #003d7a 100%);
     -webkit-touch-callout: none;
     -webkit-user-select: none;
     user-select: none;
