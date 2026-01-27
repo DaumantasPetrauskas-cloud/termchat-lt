@@ -85,14 +85,14 @@ async function runTerminalBoot() {
         "",
         ">>> SELECT MODE:",
         ">>> [1] Chat/Music Only (FAST)",
-        ">>> [2] AI Mode (Groq API Key)",
-        ">>> [3] Local AI Mode (No Key Needed)",
+        ">>> [2] AI Mode (requires Groq API key)",
+        ">>> [3] Local AI Mode (simulated, no key)",
         "",
-        ">>> ADMIN COMMANDS:",
-        ">>>   /ai hands off     -> Disengage AI",
-        ">>>   /ai hands on      -> Engage AI",
+        ">>> AI MODE SETUP:",
+        ">>> Get free API key: console.groq.com",
+        ">>> Enter when prompted in mode [2]",
         "",
-        "Type '1', '2', '3' to initialize..."
+        "Type '1', '2', or '3' to initialize..."
     ];
 
     statusEl.innerText = "AUTO-SEQUENCE ACTIVE...";
@@ -225,21 +225,6 @@ async function talkToClone(prompt) {
         return;
     }
 
-    // LOCAL AI
-    if (USE_LOCAL_AI) {
-        const responses = [
-            "Running on local hardware. How can I assist?",
-            "System resources: 100% available.",
-            "No external connection detected. Offline mode.",
-            "I am the Local Interface.",
-            "Processing request on device."
-        ];
-        const reply = responses[Math.floor(Math.random() * responses.length)];
-        addAIMessage("Processing locally...", false);
-        setTimeout(() => addAIMessage(reply, false), 800);
-        return;
-    }
-
     // LOCAL AI MODE (Simulated Responses)
     if (USE_LOCAL_AI) {
         addAIMessage("Processing locally...", false);
@@ -249,7 +234,12 @@ async function talkToClone(prompt) {
                 "I like where your head's at! 💭",
                 "Let me think about that... 🧠",
                 "Great question! In my analysis... 📊",
-                "I appreciate the creativity! ✨"
+                "I appreciate the creativity! ✨",
+                "Running on local hardware. How can I assist?",
+                "System resources: 100% available.",
+                "No external connection detected. Offline mode.",
+                "I am the Local Interface.",
+                "Processing request on device."
             ];
             const reply = responses[Math.floor(Math.random() * responses.length)];
             addAIMessage(reply, false);
@@ -257,45 +247,67 @@ async function talkToClone(prompt) {
         return;
     }
 
-    // REMOTE AI
+    // REMOTE AI with Groq API
     if (!GROQ_API_KEY) {
-        addAIMessage("💡 Tip: Enter your API key for advanced AI, or use Local AI mode", true);
+        addAIMessage("💡 Tip: Enter your Groq API key in boot menu (API mode) for advanced AI, or use Local AI mode", true);
         return;
     }
 
     try {
-        addAIMessage("🤖 Processing with remote AI...", false);
+        addAIMessage("🤖 Contacting Groq AI...", false);
         
-        const req = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+        const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
             method: "POST",
             headers: { 
                 "Content-Type": "application/json", 
                 "Authorization": `Bearer ${GROQ_API_KEY}` 
             },
             body: JSON.stringify({
-                model: "llama-3.3-70b-versatile", 
+                model: "mixtral-8x7b-32768", 
                 temperature: 0.7,
-                max_tokens: 150,
+                max_tokens: 200,
                 messages: [
-                    { role: "system", content: "You are TERMAI, a helpful AI assistant in a retro terminal interface. Keep responses brief and engaging. Respond in the same language as the user." }, 
-                    { role: "user", content: prompt }
+                    { 
+                        role: "system", 
+                        content: "You are TERMAI, a helpful AI assistant in a retro terminal interface. Keep responses brief (1-2 sentences), engaging, and technical. Use emoji sparingly. Respond in the same language as the user." 
+                    }, 
+                    { 
+                        role: "user", 
+                        content: prompt 
+                    }
                 ]
             })
         });
 
-        if (!req.ok) {
-            throw new Error(`API Error: ${req.status} - ${req.statusText}`);
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            const errorMsg = errorData.error?.message || response.statusText || "Unknown error";
+            throw new Error(`API Error (${response.status}): ${errorMsg}`);
         }
-        const json = await req.json();
-        if (!json.choices || !json.choices[0]) {
-            throw new Error("Invalid API response format");
+        
+        const data = await response.json();
+        
+        if (!data.choices || !data.choices[0] || !data.choices[0].message) {
+            throw new Error("Invalid response format from Groq API");
         }
-        const reply = json.choices[0].message.content || "No response received";
+        
+        const reply = data.choices[0].message.content.trim();
         addAIMessage(reply, false);
+        addXP(25); // Reward for using AI
         
     } catch (err) {
-        console.error("AI Error:", err);
-        addAIMessage(`⚠️ AI unavailable: ${err.message || "Network error"}. Try Local AI mode.`, true);
+        console.error("Groq AI Error:", err);
+        let errorMsg = err.message;
+        
+        if (errorMsg.includes("401") || errorMsg.includes("Unauthorized")) {
+            errorMsg = "Invalid API key. Check your credentials.";
+        } else if (errorMsg.includes("429")) {
+            errorMsg = "Rate limited. Wait a moment and try again.";
+        } else if (errorMsg.includes("Network")) {
+            errorMsg = "Network error. Check your connection.";
+        }
+        
+        addAIMessage(`⚠️ AI Error: ${errorMsg}. Try Local AI mode or check your API key.`, true);
     }
 }
 
@@ -352,6 +364,27 @@ function handleSend() {
 function processCommand(txt) {
     const lower = txt.toLowerCase();
 
+    // HELP COMMAND
+    if (lower === '/help' || lower === 'help' || lower === '?') {
+        const helpText = `
+📚 AVAILABLE COMMANDS:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+/ai <question>    - Ask AI assistant
+/help or ?        - Show this help
+/play music       - Play background music
+/stop music       - Stop music
+/open panel       - Open workshop panel
+/hands on/off     - Toggle AI (admin)
+
+💡 TIPS:
+- Use /ai for advanced responses
+- Normal text broadcasts to chat
+- Check boot menu for AI setup
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`;
+        addSystemMessage(helpText);
+        return;
+    }
+
     // ADMIN ROOT COMMANDS
     if (adminMode) {
         if (lower.includes('hands off') || lower.includes('/ai hands')) {
@@ -378,10 +411,14 @@ function processCommand(txt) {
     }
 
     // AI CHAT
-    if (txt.startsWith('/ai')) {
-        const prompt = txt.replace('/ai', '').trim();
-        if(!prompt) return;
-        addUserMessage(prompt);
+    if (txt.startsWith('/ai') || txt.startsWith('/AI')) {
+        const prompt = txt.replace(/^\/ai\s*/i, '').trim();
+        if(!prompt) {
+            addUserMessage(txt);
+            addAIMessage("Usage: /ai <your question>\nExample: /ai What is the capital of France?", true);
+            return;
+        }
+        addUserMessage(`/ai ${prompt}`);
         talkToClone(prompt);
         return;
     }

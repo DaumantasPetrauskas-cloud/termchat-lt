@@ -1,0 +1,12 @@
+Fix: Multi-device typing and responsive design improvements
+
+- Added mobile viewport meta tags for iOS/notch support
+- Fixed text wrapping and word-break for all devices  
+- Added responsive padding and font sizing (mobile-first)
+- Input font-size 16px to prevent mobile auto-zoom
+- Safe area insets for devices with notches
+- Touch action manipulation to prevent double-tap delay
+- Improved message bubble rendering across all screen sizes
+- Responsive button sizing and layout
+
+Ready for deployment to GitHub Pages.
