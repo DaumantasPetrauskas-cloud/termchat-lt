@@ -208,6 +208,145 @@ function startMainApp(message) {
     addSystemMessage(message);
 }
 
+// --- 7B. AI FEATURE INSTALLATION SYSTEM ---
+const FEATURE_LIBRARY = {
+    youtube: {
+        name: 'YouTube Player',
+        script: 'https://www.youtube.com/iframe_api',
+        description: 'Embed and play YouTube videos'
+    },
+    spotify: {
+        name: 'Spotify Web API',
+        script: 'https://sdk.scdn.co/spotify-player.js',
+        description: 'Play Spotify music'
+    },
+    canvas: {
+        name: 'Canvas Drawing',
+        description: 'Built-in HTML5 Canvas support'
+    },
+    webgl: {
+        name: '3D WebGL',
+        description: 'Built-in WebGL support'
+    },
+    fetch: {
+        name: 'API Fetching',
+        description: 'Built-in Fetch API support'
+    },
+    openai: {
+        name: 'OpenAI API',
+        script: 'https://cdn.jsdelivr.net/npm/openai@latest',
+        description: 'OpenAI integration'
+    },
+    chart: {
+        name: 'Chart.js',
+        script: 'https://cdn.jsdelivr.net/npm/chart.js',
+        description: 'Data visualization charts'
+    },
+    threejs: {
+        name: 'Three.js',
+        script: 'https://cdn.jsdelivr.net/npm/three@latest/build/three.min.js',
+        description: '3D graphics library'
+    }
+};
+
+async function detectRequiredFeatures(userRequest) {
+    // Ask AI what features are needed
+    const featurePrompt = `Analyze this user request and respond with ONLY a JSON array of feature names needed (lowercase, no explanation):
+"${userRequest}"
+
+Available features: ${Object.keys(FEATURE_LIBRARY).join(', ')}
+
+Respond ONLY with JSON like: ["feature1", "feature2"]`;
+    
+    try {
+        const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+            method: "POST",
+            headers: { 
+                "Content-Type": "application/json", 
+                "Authorization": `Bearer ${GROQ_API_KEY}` 
+            },
+            body: JSON.stringify({
+                model: "mixtral-8x7b-32768", 
+                temperature: 0.3,
+                max_tokens: 100,
+                messages: [{ role: "user", content: featurePrompt }]
+            })
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            const content = data.choices[0].message.content.trim();
+            const featuresNeeded = JSON.parse(content);
+            return featuresNeeded.filter(f => FEATURE_LIBRARY[f]);
+        }
+    } catch (e) {
+        console.error("Feature detection error:", e);
+    }
+    return [];
+}
+
+async function installFeature(featureName) {
+    const feature = FEATURE_LIBRARY[featureName];
+    if (!feature) {
+        addSystemMessage(`⚠ Feature not found: ${featureName}`);
+        return false;
+    }
+    
+    addSystemMessage(`📦 Installing: ${feature.name}...`);
+    
+    try {
+        if (feature.script) {
+            // Load external library
+            const script = document.createElement('script');
+            script.src = feature.script;
+            script.onload = () => {
+                addSystemMessage(`✅ Installed: ${feature.name}`);
+            };
+            script.onerror = () => {
+                addSystemMessage(`❌ Failed to load: ${feature.name}`);
+            };
+            document.head.appendChild(script);
+        } else {
+            addSystemMessage(`✅ Installed: ${feature.name} (built-in)`);
+        }
+        return true;
+    } catch (e) {
+        addSystemMessage(`❌ Error installing ${feature.name}: ${e.message}`);
+        return false;
+    }
+}
+
+async function generateAndApplyFeature(userRequest, aiResponse) {
+    // Extract code from AI response
+    const codeMatch = aiResponse.match(/```(?:html|js|css)?\n([\s\S]*?)```/);
+    if (!codeMatch) return false;
+    
+    const code = codeMatch[1].trim();
+    
+    // Detect if HTML, CSS, or JS
+    if (code.includes('<') || code.includes('</')) {
+        // HTML feature - create container
+        const container = document.createElement('div');
+        container.id = 'ai-feature-' + Date.now();
+        container.className = 'p-4 bg-black/40 border border-cyan-500/50 rounded-lg mt-4';
+        container.innerHTML = code;
+        document.getElementById('chat-container').appendChild(container);
+        addSystemMessage(`✅ Feature added to chat`);
+        return true;
+    } else if (code.includes('{') || code.includes('function') || code.includes('const')) {
+        // JavaScript - execute
+        try {
+            eval(code);
+            addSystemMessage(`✅ Feature code executed`);
+            return true;
+        } catch (e) {
+            addSystemMessage(`⚠ Code execution error: ${e.message}`);
+            return false;
+        }
+    }
+    return false;
+}
+
 // --- 8. AI LOGIC ---
 async function talkToClone(prompt) {
     // SECURITY: Hierarchy Check
@@ -301,22 +440,32 @@ async function talkToClone(prompt) {
         addAIMessage(reply, false);
         addXP(25); // Reward for using AI
 
-        // If running as Architect (admin) and hands are on, extract JS code blocks and apply them
+        // ARCHITECT MODE: Auto-install features and apply code
         if (adminMode && !handsOff) {
-            try {
-                const codeBlockMatch = reply.match(/```(?:js\n)?([\s\S]*?)```/i);
-                if (codeBlockMatch && codeBlockMatch[1]) {
-                    const jsCode = codeBlockMatch[1].trim();
-                    try {
-                        eval(jsCode);
-                        addSystemMessage('✅ Architect AI: Applied JavaScript code.');
-                    } catch (e) {
-                        addSystemMessage('⚠ Architect AI: Error applying code: ' + e.message);
-                    }
+            // Detect and install required features
+            const featuresNeeded = await detectRequiredFeatures(prompt);
+            if (featuresNeeded.length > 0) {
+                addSystemMessage(`🔍 Detected ${featuresNeeded.length} feature(s) needed...`);
+                for (const feature of featuresNeeded) {
+                    await new Promise(r => setTimeout(r, 500)); // Delay for UX
+                    await installFeature(feature);
                 }
-            } catch (e) {
-                console.error('Error extracting/applying AI code block:', e);
             }
+            
+            // Try to extract and apply code blocks
+            const codeBlockMatch = reply.match(/```(?:js|html|css)?\n([\s\S]*?)```/i);
+            if (codeBlockMatch && codeBlockMatch[1]) {
+                const jsCode = codeBlockMatch[1].trim();
+                try {
+                    eval(jsCode);
+                    addSystemMessage('✅ Architect AI: Applied JavaScript code.');
+                } catch (e) {
+                    addSystemMessage('⚠ Architect AI: Error applying code: ' + e.message);
+                }
+            }
+            
+            // Try to generate feature from AI description
+            await generateAndApplyFeature(prompt, reply);
         }
         
     } catch (err) {
