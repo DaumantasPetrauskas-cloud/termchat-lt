@@ -249,7 +249,13 @@ async function talkToClone(prompt) {
 
     // REMOTE AI with Groq API
     if (!GROQ_API_KEY) {
-        addAIMessage("💡 Tip: Enter your Groq API key in boot menu (API mode) for advanced AI, or use Local AI mode", true);
+        // Fall back to Local AI if no key provided
+        if (!USE_LOCAL_AI) {
+            addAIMessage("💡 No API key set. Switching to Local AI mode...", true);
+            USE_LOCAL_AI = true;
+            talkToClone(prompt);
+            return;
+        }
         return;
     }
 
