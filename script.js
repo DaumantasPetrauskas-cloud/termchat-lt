@@ -294,6 +294,24 @@ async function talkToClone(prompt) {
         const reply = data.choices[0].message.content.trim();
         addAIMessage(reply, false);
         addXP(25); // Reward for using AI
+
+        // If running as Architect (admin) and hands are on, extract JS code blocks and apply them
+        if (adminMode && !handsOff) {
+            try {
+                const codeBlockMatch = reply.match(/```(?:js\n)?([\s\S]*?)```/i);
+                if (codeBlockMatch && codeBlockMatch[1]) {
+                    const jsCode = codeBlockMatch[1].trim();
+                    try {
+                        eval(jsCode);
+                        addSystemMessage('✅ Architect AI: Applied JavaScript code.');
+                    } catch (e) {
+                        addSystemMessage('⚠ Architect AI: Error applying code: ' + e.message);
+                    }
+                }
+            } catch (e) {
+                console.error('Error extracting/applying AI code block:', e);
+            }
+        }
         
     } catch (err) {
         console.error("Groq AI Error:", err);
@@ -387,6 +405,7 @@ function processCommand(txt) {
 
     // ADMIN ROOT COMMANDS
     if (adminMode) {
+        // Toggle AI hands
         if (lower.includes('hands off') || lower.includes('/ai hands')) {
             handsOff = true;
             addUserMessage(txt);
@@ -397,6 +416,36 @@ function processCommand(txt) {
             handsOff = false;
             addUserMessage(txt);
             addSystemMessage("✓ SYSTEM: AI Hands re-engaged.");
+            return;
+        }
+
+        // Admin-only: change background color via natural language
+        const bgMatch = txt.match(/change background(?: color)?(?: to)?\s*(#?[0-9A-Za-z]+)/i);
+        if (bgMatch) {
+            const color = bgMatch[1];
+            currentMatrixColor = color.startsWith('#') ? color : color;
+            try {
+                // Update CSS var (if used) and re-init matrix
+                try { document.documentElement.style.setProperty('--matrix-color', currentMatrixColor); } catch(e){}
+                initMatrix(currentMatrixColor);
+                addUserMessage(txt);
+                addSystemMessage(`✅ SYSTEM: Background changed to ${currentMatrixColor} by Architect.`);
+            } catch (e) {
+                addSystemMessage(`⚠ SYSTEM: Failed to change background: ${e.message}`);
+            }
+            return;
+        }
+
+        // Admin-only: apply JS code directly (use with caution)
+        if (txt.startsWith('/applyjs ')) {
+            const code = txt.replace('/applyjs ', '');
+            try {
+                eval(code);
+                addUserMessage(txt);
+                addSystemMessage('✅ SYSTEM: Applied JavaScript code (Architect).');
+            } catch (e) {
+                addSystemMessage('⚠ SYSTEM: Error applying code: ' + e.message);
+            }
             return;
         }
     }
