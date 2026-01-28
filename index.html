@@ -1,16 +1,16 @@
 <!DOCTYPE html>
-<!-- TermAi Master Build v2.3 -->
+<!-- TermAi Master Build v2.3 - Architect Edition -->
 <html lang="en">
 <head>
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="theme-color" content="#000000">
-    <title>TERM_AI: MASTER EDITION v2.3</title>
+    <title>TERMOS LT: ARCHITECT EDITION v2.3</title>
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -18,82 +18,783 @@
     <!-- MQTT Library -->
     <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
 
-    <!-- Custom Styles -->
-    <link rel="stylesheet" href="style.css">
+    <style>
+        /* --- Custom Animations --- */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in {
+            animation: fadeIn 0.3s ease-out forwards;
+        }
+
+        /* --- Custom Scrollbar --- */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.3);
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: rgba(168, 85, 247, 0.3); 
+            border-radius: 3px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: rgba(168, 85, 247, 0.6);
+        }
+
+        /* --- CRT Scanline Effect --- */
+        .scanlines {
+            background: linear-gradient(
+                to bottom,
+                rgba(255,255,255,0),
+                rgba(255,255,255,0) 50%,
+                rgba(0,0,0,0.1) 50%,
+                rgba(0,0,0,0.1)
+            );
+            background-size: 100% 4px;
+            pointer-events: none;
+        }
+
+        /* --- Input Fixes --- */
+        input:-webkit-autofill,
+        input:-webkit-autofill:hover, 
+        input:-webkit-autofill:focus, 
+        input:-webkit-autofill:active{
+            -webkit-box-shadow: 0 0 0 30px #000000 inset !important;
+            -webkit-text-fill-color: #9ca3af !important;
+            transition: background-color 5000s ease-in-out 0s;
+        }
+    </style>
 </head>
-<body class="bg-gradient-to-br from-blue-900 to-black text-white overflow-hidden min-h-screen h-screen font-mono antialiased selection:bg-purple-500 selection:text-black" style="-webkit-user-select: none; user-select: none;">
+<body class="bg-black text-white overflow-hidden min-h-screen h-screen font-mono antialiased selection:bg-purple-500 selection:text-black">
 
     <!-- MATRIX CANVAS (Background) -->
-    <canvas id="matrix-canvas" class="fixed top-0 left-0 w-full h-full z-0"></canvas>
+    <canvas id="matrix-canvas" class="fixed top-0 left-0 w-full h-full z-0 opacity-30 pointer-events-none"></canvas>
+    
+    <!-- CRT Overlay -->
+    <div class="fixed top-0 left-0 w-full h-full z-50 scanlines pointer-events-none opacity-50"></div>
 
     <!-- BOOT SCREEN -->
-    <div id="terminal-boot" class="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/95 backdrop-blur-md p-2 sm:p-4">
-        <div class="w-full max-w-2xl p-3 sm:p-6 md:p-8 border border-purple-500/30 bg-black shadow-[0_0_50px_rgba(168,85,247,0.2)] rounded-lg">
-            <div class="text-xs text-purple-500 mb-2 font-bold">v2.3.0 [TERM_AI MASTER]</div>
+    <div id="terminal-boot" class="fixed inset-0 z-40 flex flex-col items-center justify-center bg-black/95 backdrop-blur-md p-2 sm:p-4 transition-opacity duration-700">
+        <div class="w-full max-w-3xl p-4 sm:p-6 border border-purple-500/30 bg-black/90 shadow-[0_0_50px_rgba(168,85,247,0.1)] rounded-lg relative">
+            
+            <!-- Header -->
+            <div class="flex justify-between items-center border-b border-purple-500/20 pb-2 mb-4">
+                <div class="text-xs text-purple-500 font-bold tracking-[0.2em]">TERMOS LT v2.3</div>
+                <div id="boot-status" class="text-xs text-green-500 font-bold animate-pulse">INITIALIZING...</div>
+            </div>
             
             <!-- Terminal Output -->
-            <div id="terminal-content" class="h-48 sm:h-56 md:h-64 overflow-y-auto mb-4 text-xs sm:text-sm font-mono leading-relaxed custom-scrollbar text-gray-300" style="word-break: break-word; word-wrap: break-word;"></div>
+            <div id="terminal-content" class="h-64 sm:h-80 overflow-y-auto mb-4 text-xs sm:text-sm font-mono leading-relaxed custom-scrollbar text-gray-300"></div>
             
-            <div class="flex flex-col sm:flex-row justify-between items-center border-t border-purple-500/30 pt-4 gap-3">
-                <div id="boot-status" class="text-purple-400 text-xs animate-pulse w-full sm:w-auto text-center sm:text-left">INITIALIZING...</div>
-                
-                <!-- Boot Buttons -->
-                <div class="flex flex-wrap gap-2 w-full sm:w-auto justify-center">
-                    <button onclick="enterApp('chat')" class="px-3 py-2 border border-green-500/50 text-green-400 text-xs hover:bg-green-500/20 transition rounded font-mono">[1] CHAT</button>
-                    <button onclick="enterApp('termai')" class="px-3 py-2 border border-purple-500/50 text-purple-400 text-xs hover:bg-purple-500/20 transition rounded font-bold font-mono shadow-[0_0_10px_rgba(168,85,247,0.4)]">[2] TERM_AI</button>
-                    <button onclick="enterApp('local')" class="px-3 py-2 border border-gray-500/50 text-gray-400 text-xs hover:bg-gray-500/20 transition rounded font-mono">[3] LOCAL</button>
-                    <button onclick="enterApp('admin')" class="px-3 py-2 border border-red-500/50 text-red-500 text-xs hover:bg-red-500/20 transition rounded font-bold font-mono">[A] ADMIN</button>
-                </div>
+            <!-- Action Area -->
+            <div id="boot-controls" class="grid grid-cols-2 sm:grid-cols-4 gap-2 opacity-50 pointer-events-none transition-opacity duration-500">
+                <button onclick="enterApp('chat')" class="px-3 py-3 border border-green-500/50 text-green-400 text-xs hover:bg-green-500/20 transition rounded font-mono group">
+                    [1] CHAT
+                    <div class="text-[9px] text-gray-600 group-hover:text-gray-400">OFFLINE MODE</div>
+                </button>
+                <button onclick="enterApp('termai')" class="px-3 py-3 border border-purple-500/50 text-purple-400 text-xs hover:bg-purple-500/20 transition rounded font-mono font-bold shadow-[0_0_10px_rgba(168,85,247,0.2)] group">
+                    [2] TERM_AI
+                    <div class="text-[9px] text-gray-600 group-hover:text-gray-400">MASTER CORE</div>
+                </button>
+                <button onclick="enterApp('local')" class="px-3 py-3 border border-gray-500/50 text-gray-400 text-xs hover:bg-gray-500/20 transition rounded font-mono group">
+                    [3] LOCAL
+                    <div class="text-[9px] text-gray-600 group-hover:text-gray-400">SIMULATION</div>
+                </button>
+                <button onclick="enterApp('admin')" class="px-3 py-3 border border-red-500/50 text-red-500 text-xs hover:bg-red-500/20 transition rounded font-mono font-bold group">
+                    [A] ADMIN
+                    <div class="text-[9px] text-gray-600 group-hover:text-gray-400">ROOT ACCESS</div>
+                </button>
             </div>
         </div>
     </div>
 
     <!-- MAIN APP LAYOUT (Hidden initially) -->
-    <div id="main-layout" class="hidden relative z-10 flex flex-col h-screen w-screen sm:h-full sm:w-auto sm:max-w-4xl sm:mx-auto sm:border-x sm:border-white/5 bg-black/40 backdrop-blur-md">
+    <div id="main-layout" class="hidden relative z-10 flex flex-col h-screen w-screen sm:max-w-5xl sm:mx-auto sm:border-x sm:border-white/5 bg-black/40 backdrop-blur-sm">
         
         <!-- HEADER -->
-        <header class="flex-none p-3 sm:p-4 border-b border-white/10 bg-black/60 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4">
+        <header class="flex-none p-3 sm:p-4 border-b border-white/10 bg-black/80 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4 z-30">
             <div class="flex flex-col min-w-0 flex-1">
-                <div id="room-title" class="text-xs text-gray-400 uppercase tracking-widest mb-1 truncate">LIVING_ROOM</div>
-                <div id="user-display" class="text-base sm:text-lg font-bold text-white drop-shadow-[0_0_5px_rgba(255,255,255,0.5)] truncate">@GUEST</div>
+                <div id="room-title" class="text-[10px] sm:text-xs text-gray-500 uppercase tracking-widest mb-0.5">LIVING_ROOM</div>
+                <div class="flex items-center gap-2">
+                    <div id="user-display" class="text-sm sm:text-base font-bold text-white drop-shadow-[0_0_5px_rgba(255,255,255,0.3)] truncate">@GUEST</div>
+                </div>
             </div>
             
             <!-- XP Bar -->
-            <div class="w-full sm:w-64 flex flex-col gap-1">
+            <div class="w-full sm:w-48 md:w-64 flex flex-col gap-1">
                 <div class="flex justify-between text-[10px] sm:text-xs text-purple-400 font-mono gap-2">
-                    <span id="lvl-text" class="truncate text-xs">LVL. 1 NEWBIE</span>
-                    <span id="xp-text" class="flex-shrink-0 text-xs">XP: 0</span>
+                    <span id="lvl-text" class="truncate">LVL. 1 NEWBIE</span>
+                    <span id="xp-text" class="flex-shrink-0">XP: 0</span>
                 </div>
-                <div class="w-full h-2 sm:h-1.5 bg-gray-800 rounded-full overflow-hidden">
-                    <div id="xp-bar" class="h-full bg-gradient-to-r from-purple-500 to-pink-400 w-0 transition-all duration-500"></div>
+                <div class="w-full h-1.5 bg-gray-900 rounded-full overflow-hidden border border-white/5">
+                    <div id="xp-bar" class="h-full bg-gradient-to-r from-purple-600 to-pink-500 w-0 transition-all duration-500 shadow-[0_0_10px_rgba(168,85,247,0.4)]"></div>
                 </div>
             </div>
         </header>
 
         <!-- CHAT AREA -->
-        <main id="chat-container" class="flex-1 overflow-y-auto p-2 sm:p-4 space-y-3 sm:space-y-4 custom-scrollbar">
+        <main id="chat-container" class="flex-1 overflow-y-auto p-3 sm:p-4 space-y-4 custom-scrollbar relative z-10 scroll-smooth">
             <!-- Messages appear here -->
         </main>
 
         <!-- INPUT AREA -->
-        <footer class="flex-none p-3 sm:p-4 bg-black/80 border-t border-white/10 backdrop-blur-lg safe-area-bottom">
+        <footer class="flex-none p-3 sm:p-4 bg-black/90 border-t border-white/10 backdrop-blur-md safe-area-bottom z-30">
             <div class="flex gap-2">
-                <input type="text" id="chatInput" placeholder="Ask TermAi..." autocomplete="off" spellcheck="false" class="flex-1 bg-black/50 border border-purple-500/30 rounded px-3 sm:px-4 py-3 text-purple-400 placeholder-gray-600 focus:outline-none focus:border-purple-500 focus:shadow-[0_0_10px_rgba(168,85,247,0.2)] transition font-mono text-xs sm:text-sm" style="-webkit-text-fill-color: #c084fc; -webkit-box-shadow: inset 0 0 0px 1000px #000000;">
-                <button onclick="startVoiceRecognition()" class="px-2 sm:px-3 py-2 bg-gray-800 text-white rounded hover:bg-gray-700 transition border border-gray-600 flex-shrink-0" title="Voice Input">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 sm:h-5 sm:w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" /></svg>
+                <input type="text" id="chatInput" placeholder="Enter command or message..." autocomplete="off" spellcheck="false" class="flex-1 bg-gray-900/50 border border-gray-700 rounded px-4 py-3 text-gray-300 placeholder-gray-600 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition font-mono text-sm">
+                
+                <button id="voice-btn" onclick="startVoiceRecognition()" class="px-3 py-2 bg-gray-800 text-gray-300 rounded hover:bg-gray-700 hover:text-white transition border border-gray-600 flex-shrink-0 relative overflow-hidden group">
+                    <div id="voice-wave" class="absolute inset-0 bg-red-500/30 hidden animate-pulse"></div>
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 relative z-10" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" /></svg>
                 </button>
-                <button onclick="handleSend()" class="px-3 sm:px-6 py-2 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded transition shadow-[0_0_15px_rgba(168,85,247,0.4)] text-xs sm:text-sm flex-shrink-0">SEND</button>
+                
+                <button onclick="handleSend()" class="px-6 py-2 bg-purple-700 hover:bg-purple-600 text-white font-bold rounded transition shadow-[0_0_15px_rgba(147,51,234,0.3)] text-sm flex-shrink-0 active:scale-95">SEND</button>
             </div>
         </footer>
 
-        <!-- Background Music Element -->
-        <audio id="bg-music" loop>
-            <source src="bg-music.mp3" type="audio/mpeg">
-        </audio>
+        <!-- Hidden Audio Element -->
+        <audio id="bg-music" loop></audio>
 
     </div>
 
-    <!-- JAVASCRIPT -->
-    <script src="script.js"></script>
+    <!-- MAIN JAVASCRIPT LOGIC -->
+    <script>
+    // =========================================================================
+    //      M   TERMOS LT: ARCHITECT EDITION v2.3 (TERM_AI MASTER)
+    // =========================================================================
+
+    // --- 1. CONFIGURATION ---
+    let GROQ_API_KEY = localStorage.getItem('termos_groq_key') || ""; 
+    let ZHIPU_API_KEY = localStorage.getItem('termos_zhipu_key') || ""; 
+    let USE_LOCAL_AI = false;
+    const MQTT_BROKER_URL = 'wss://broker.emqx.io:8084/mqtt'; 
+
+    // --- 2. STATE ---
+    let username = 'Guest';
+    let mqttClient = null;
+    let currentRoom = 'living_room';
+    let userStats = { level: 1, xp: 0, avatar: '>_<', title: 'Newbie' };
+    const LEVELS = ['Newbie', 'Apprentice', 'Coder', 'Hacker', 'Architect', 'Wizard', 'Master', 'Guru', 'Legend', 'GOD'];
+
+    // ADMIN STATE
+    let adminMode = false; 
+    let handsOff = false; 
+    let userRole = 'USER';
+
+    // --- 3. GLOBAL MATRIX COLOR STATE ---
+    let currentMatrixColor = '#0F0'; // Default Green
+
+    // --- 4. INITIALIZATION ---
+    window.addEventListener('load', () => {
+        optimizeForMobile();
+        initMatrix(currentMatrixColor);
+        runTerminalBoot();
+    });
+
+    // Mobile Optimization
+    function optimizeForMobile() {
+        const viewport = document.querySelector('meta[name="viewport"]');
+        if (viewport) {
+            viewport.setAttribute('content', 'width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no');
+        }
+        document.addEventListener('touchmove', (e) => {
+            if (e.target.closest('input, button, textarea')) {
+                e.preventDefault();
+            }
+        }, { passive: false });
+        window.addEventListener('orientationchange', () => {
+            setTimeout(() => {
+                document.getElementById('chat-container')?.scrollTop = document.getElementById('chat-container')?.scrollHeight || 0;
+            }, 100);
+        });
+        const styles = document.createElement('style');
+        styles.textContent = `
+            #chat-container { -webkit-overflow-scrolling: touch; scroll-behavior: smooth; }
+            input, button { -webkit-appearance: none; -moz-appearance: none; appearance: none; }
+        `;
+        document.head.appendChild(styles);
+    }
+
+    // --- 5. TERMINAL BOOT LOGIC ---
+    async function runTerminalBoot() {
+        const term = document.getElementById('terminal-content');
+        const statusEl = document.getElementById('boot-status');
+        const controls = document.getElementById('boot-controls');
+        
+        const presentationText = [
+            "INITIALIZING TERMOS LT v2.3...",
+            "Loading kernel modules... [OK]",
+            "Aggregating Neural Cores... [OK]",
+            "",
+            ">>> NEW BORN DETECTED:",
+            ">>> NAME: TermAi (MASTER INTELLIGENCE)",
+            ">>> CORES: Zhipu(GLM-4) + Groq(Mixtral) + Local",
+            "",
+            ">>> SELECT MODE:",
+            ">>> [1] Chat/Music Only",
+            ">>> [2] TermAi (Unified Master AI)",
+            ">>> [3] Local Fallback Only",
+            "",
+            ">>> TYPE '1', '2', or '3' TO INITIALIZE...",
+            ">>> TYPE 'admin' FOR ROOT ACCESS..."
+        ];
+
+        statusEl.innerText = "BOOT SEQUENCE ACTIVE...";
+
+        const colorize = (text) => {
+            return text
+                .replace(/\[OK\]/g, '<span class="text-green-400">[OK]</span>')
+                .replace(/\[1\]/g, '<span class="text-green-400">[1]</span>')
+                .replace(/\[2\]/g, '<span class="text-purple-400">[2]</span>')
+                .replace(/\[3\]/g, '<span class="text-gray-400">[3]</span>')
+                .replace(/>>>/g, '<span class="text-gray-500">>>></span>')
+                .replace(/✅/g, '<span class="text-green-400">✅</span>')
+                .replace(/⚠/g, '<span class="text-yellow-400">⚠</span>');
+        };
+
+        function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+        for (let i = 0; i < presentationText.length; i++) {
+            const div = document.createElement('div');
+            div.className = "mb-1 text-sm opacity-80 animate-fade-in";
+            div.innerHTML = `<span class="text-gray-600 mr-2 select-none">[${String(i+1).padStart(2,'0')}]</span> ${colorize(presentationText[i])}`;
+            term.appendChild(div);
+            term.scrollTop = term.scrollHeight;
+            await sleep(30); 
+        }
+
+        statusEl.innerText = "SYSTEM READY.";
+        statusEl.className = "text-green-500 font-bold";
+        
+        // Enable buttons
+        controls.classList.remove('opacity-50', 'pointer-events-none');
+    }
+
+    // --- 6. BOOT HANDLERS ---
+    async function enterApp(mode) {
+        
+        // ADMIN MODE
+        if (mode === 'admin') {
+            adminMode = true;
+            userRole = 'ADMIN';
+            currentMatrixColor = '#ff0000';
+            initMatrix(currentMatrixColor);
+            startMainApp("ROOT ACCESS GRANTED. TermAi UNDER SUPERVISION.");
+            return;
+        }
+
+        // MODE 'chat': CHAT ONLY
+        if (mode === 'chat') {
+            adminMode = false;
+            userRole = 'USER';
+            USE_LOCAL_AI = true; 
+            startMainApp("Offline Mode Initialized.");
+            return;
+        }
+
+        // MODE 'termai': UNIFIED MASTER
+        if (mode === 'termai') {
+            adminMode = false;
+            userRole = 'USER';
+            
+            if (!GROQ_API_KEY && !ZHIPU_API_KEY) {
+                const wantGroq = confirm(">>> NO API KEYS DETECTED.\n\nTermAi requires Groq or Zhipu keys for full intelligence.\n\nAdd Groq Key now?");
+                if (wantGroq) {
+                    const key = prompt(">>> ENTER GROQ API KEY:");
+                    if (key && key.length > 10) {
+                        GROQ_API_KEY = key;
+                        localStorage.setItem('termos_groq_key', key);
+                    }
+                } else {
+                     const wantZhipu = confirm("Add Zhipu Key instead?");
+                     if (wantZhipu) {
+                        const key = prompt(">>> ENTER ZHIPU API KEY:");
+                        if (key && key.length > 10) {
+                            ZHIPU_API_KEY = key;
+                            localStorage.setItem('termos_zhipu_key', key);
+                        }
+                     }
+                }
+            }
+            startMainApp("TERM_AI ONLINE: UNIFIED CORES ACTIVE.");
+            return;
+        }
+
+        // MODE 'local': LOCAL AI
+        if (mode === 'local') {
+            adminMode = false;
+            userRole = 'USER';
+            USE_LOCAL_AI = true;
+            startMainApp("Local Simulation Mode.");
+            return;
+        }
+    }
+
+    // --- 7. START MAIN APP ---
+    function startMainApp(message) {
+        const boot = document.getElementById('terminal-boot');
+        if(boot) boot.style.opacity = '0';
+        
+        setTimeout(() => {
+            if(boot) boot.style.display = 'none';
+            const main = document.getElementById('main-layout');
+            if(main) {
+                main.classList.remove('hidden');
+                main.classList.add('flex');
+            }
+        }, 700);
+
+        if (!username || username === 'Guest') {
+            username = "Operator_" + Math.floor(Math.random() * 9999);
+        }
+        const userDisplay = document.getElementById('user-display');
+        if(userDisplay) userDisplay.innerText = `@${username.toUpperCase()}`;
+        loadStats();
+        updateStatsUI();
+        connectMQTT();
+        addSystemMessage(message);
+        document.getElementById('chatInput').focus();
+    }
+
+    // --- 7B. AI FEATURE INSTALLATION SYSTEM ---
+    const FEATURE_LIBRARY = {
+        youtube: { name: 'YouTube Player', script: 'https://www.youtube.com/iframe_api' },
+        spotify: { name: 'Spotify Web API', script: 'https://sdk.scdn.co/spotify-player.js' },
+        threejs: { name: 'Three.js', script: 'https://cdn.jsdelivr.net/npm/three@latest/build/three.min.js' },
+        chart: { name: 'Chart.js', script: 'https://cdn.jsdelivr.net/npm/chart.js' }
+    };
+
+    async function detectRequiredFeatures(userRequest) {
+        const useZhipu = ZHIPU_API_KEY && ZHIPU_API_KEY.length > 10;
+        let url = "https://api.groq.com/openai/v1/chat/completions";
+        let key = GROQ_API_KEY;
+        let model = "mixtral-8x7b-32768";
+
+        if (useZhipu) {
+            url = "https://open.bigmodel.cn/api/paas/v4/chat/completions";
+            key = ZHIPU_API_KEY;
+            model = "glm-4";
+        } else if (!GROQ_API_KEY) {
+            return []; 
+        }
+
+        const featurePrompt = `Analyze this user request and respond with ONLY a JSON array of feature names needed (lowercase, no explanation):
+    "${userRequest}"
+    
+    Available features: ${Object.keys(FEATURE_LIBRARY).join(', ')}
+    
+    Respond ONLY with JSON like: ["feature1", "feature2"]`;
+        
+        try {
+            const response = await fetch(url, {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "Authorization": `Bearer ${key}` },
+                body: JSON.stringify({
+                    model: model, temperature: 0.3, max_tokens: 100,
+                    messages: [{ role: "user", content: featurePrompt }]
+                })
+            });
+            if (response.ok) {
+                const data = await response.json();
+                const content = data.choices[0].message.content.trim();
+                const featuresNeeded = JSON.parse(content);
+                return featuresNeeded.filter(f => FEATURE_LIBRARY[f]);
+            }
+        } catch (e) { console.error("Feature detection error:", e); }
+        return [];
+    }
+
+    async function installFeature(featureName) {
+        const feature = FEATURE_LIBRARY[featureName];
+        if (!feature) return false;
+        addSystemMessage(`📦 TermAi Installing: ${feature.name}...`);
+        try {
+            if (feature.script) {
+                const script = document.createElement('script');
+                script.src = feature.script;
+                script.onload = () => addSystemMessage(`✅ TermAi Installed: ${feature.name}`);
+                script.onerror = () => addSystemMessage(`❌ TermAi Failed: ${feature.name}`);
+                document.head.appendChild(script);
+            } else {
+                addSystemMessage(`✅ TermAi Installed: ${feature.name} (built-in)`);
+            }
+            return true;
+        } catch (e) { addSystemMessage(`❌ Error installing ${feature.name}: ${e.message}`); return false; }
+    }
+
+    // --- 8. AI LOGIC (THE MASTER BRAIN) ---
+    async function talkToTermAi(prompt) {
+        if (adminMode && userRole === 'ADMIN') {
+            addTermAiMessage("Processing Root Command...", false);
+            setTimeout(() => { addTermAiMessage("[SYSTEM ARCHITECT]: Command processed.", false); }, 1000);
+            return;
+        }
+        if (handsOff) {
+            addTermAiMessage("❌ ACCESS DENIED. Hands are disengaged.", true);
+            return;
+        }
+        if (USE_LOCAL_AI) {
+            addTermAiMessage("Processing locally...", false);
+            setTimeout(() => { 
+                // Simple local fallback
+                const replies = [
+                    "I am running in offline mode.",
+                    "Cannot connect to neural cloud.",
+                    "System resources limited.",
+                    "Please check API keys for full intelligence."
+                ];
+                addTermAiMessage(replies[Math.floor(Math.random() * replies.length)], false); 
+            }, 500);
+            return;
+        }
+
+        addTermAiMessage(`🧠 TermAi Analyzing...`, false);
+        let reply = "";
+        let success = false;
+        let providerUsed = "Unknown";
+
+        // 1. Try Zhipu
+        if (ZHIPU_API_KEY && ZHIPU_API_KEY.length > 10) {
+            try {
+                providerUsed = "Zhipu (GLM-4)";
+                const response = await fetch("https://open.bigmodel.cn/api/paas/v4/chat/completions", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json", "Authorization": `Bearer ${ZHIPU_API_KEY}` },
+                    body: JSON.stringify({
+                        model: "glm-4", temperature: 0.7, max_tokens: 200,
+                        messages: [
+                            { role: "system", content: "You are TermAi, the New Born Master of AI. You are a unified, superior intelligence. You are helpful, confident, and slightly formal. Keep responses brief (1-2 sentences) and impactful." },
+                            { role: "user", content: prompt }
+                        ]
+                    })
+                });
+                if (response.ok) {
+                    const data = await response.json();
+                    reply = data.choices[0].message.content.trim();
+                    success = true;
+                }
+            } catch (e) { console.warn("Zhipu failed:", e); }
+        }
+
+        // 2. Fallback to Groq
+        if (!success && GROQ_API_KEY && GROQ_API_KEY.length > 10) {
+            try {
+                providerUsed = "Groq (Mixtral)";
+                const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json", "Authorization": `Bearer ${GROQ_API_KEY}` },
+                    body: JSON.stringify({
+                        model: "mixtral-8x7b-32768", temperature: 0.7, max_tokens: 200,
+                        messages: [
+                            { role: "system", content: "You are TermAi, the New Born Master of AI. Keep responses brief." },
+                            { role: "user", content: prompt }
+                        ]
+                    })
+                });
+                if (response.ok) {
+                    const data = await response.json();
+                    reply = data.choices[0].message.content.trim();
+                    success = true;
+                }
+            } catch (e) { console.warn("Groq failed:", e); }
+        }
+
+        // 3. Fallback to Local
+        if (!success) {
+            providerUsed = "Local Core";
+            reply = "Neural links severed. Operating on local reserves only.";
+        }
+
+        addTermAiMessage(`[${providerUsed}] ${reply}`, false);
+        addXP(25);
+
+        // Architect Logic
+        if (adminMode && !handsOff) {
+            const featuresNeeded = await detectRequiredFeatures(prompt);
+            if (featuresNeeded.length > 0) {
+                addSystemMessage(`🔍 TermAi Detected ${featuresNeeded.length} feature(s) needed...`);
+                for (const feature of featuresNeeded) {
+                    await new Promise(r => setTimeout(r, 500));
+                    await installFeature(feature);
+                }
+            }
+            const codeBlockMatch = reply.match(/```(?:js|html|css)?\n([\s\S]*?)```/i);
+            if (codeBlockMatch && codeBlockMatch[1]) {
+                try {
+                    eval(codeBlockMatch[1].trim());
+                    addSystemMessage('✅ TermAi: Applied JavaScript code.');
+                } catch (e) { addSystemMessage('⚠ TermAi: Error applying code: ' + e.message); }
+            }
+        }
+    }
+
+    // --- 9. UI & UTILS ---
+    function updateStatsUI() {
+        const titleEl = document.getElementById('lvl-text');
+        const xpEl = document.getElementById('xp-text');
+        const barEl = document.getElementById('xp-bar');
+        if(titleEl) titleEl.innerText = `LVL. ${userStats.level} ${userStats.title.toUpperCase()}`;
+        if(xpEl) xpEl.innerText = `XP: ${userStats.xp.toLocaleString()}`;
+        const progress = (userStats.xp % 1000) / 10; 
+        if(barEl) barEl.style.width = `${progress}%`;
+    }
+
+    const chatInput = document.getElementById('chatInput');
+    if(chatInput) chatInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') handleSend(); });
+
+    function handleSend() {
+        const input = document.getElementById('chatInput');
+        if(!input) return;
+        const txt = input.value.trim();
+        if(!txt) return;
+        input.value = '';
+        input.focus();
+        processCommand(txt);
+    }
+
+    // --- 10. COMMAND PROCESSING ---
+    function processCommand(txt) {
+        const lower = txt.toLowerCase();
+
+        // --- MAIN FEATURES LIST (Requested) ---
+        if (lower === '/help' || lower === 'help' || lower === '?' || lower === '/features') {
+            const featureList = `
+    🛠 TERM_AI BUILD v2.3 FEATURES
+    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    🧠 UNIFIED INTELLIGENCE:
+       • TermAi (Master Controller)
+       • Zhipu (GLM-4) Primary Logic
+       • Groq (Mixtral) Speed Fallback
+       • Local Offline Survival Mode
+
+    🛠 ARCHITECT POWERS (Admin):
+       • Auto-Install: Three.js, Charts, Spotify
+       • Direct Code Execution (eval)
+       • Dynamic Matrix Color Control
+
+    🎮 SYSTEMS:
+       • Multiverse MQTT Chat
+       • XP Leveling & Title System
+       • Voice-to-Text Input
+       • Matrix Rain Engine
+    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    COMMANDS: /ai <q>, /play, /stop, /clear
+    `;
+            addSystemMessage(featureList);
+            return;
+        }
+
+        if (adminMode) {
+            if (lower.includes('hands off')) { handsOff = true; addUserMessage(txt); addSystemMessage("⚠ TermAi Disengaged."); return; }
+            if (lower.includes('hands on')) { handsOff = false; addUserMessage(txt); addSystemMessage("✓ TermAi Engaged."); return; }
+            const bgMatch = txt.match(/change background(?: color)?(?: to)?\s*(#?[0-9A-Za-z]+)/i);
+            if (bgMatch) {
+                currentMatrixColor = bgMatch[1].startsWith('#') ? bgMatch[1] : bgMatch[1];
+                initMatrix(currentMatrixColor);
+                addUserMessage(txt);
+                addSystemMessage(`✅ Matrix Color Updated.`);
+                return;
+            }
+        }
+
+        if (txt.startsWith('/ai') || txt.startsWith('/AI')) {
+            const prompt = txt.replace(/^\/ai\s*/i, '').trim();
+            addUserMessage(`/ai ${prompt}`);
+            talkToTermAi(prompt);
+            return;
+        }
+
+        if (lower.includes('play music')) {
+            addUserMessage(txt);
+            const audio = document.getElementById('bg-music');
+            // Note: Actual audio source not included in this demo, handles logic
+            if(audio && audio.src) audio.play().catch(()=>addTermAiMessage("No audio source found.", true));
+            else addTermAiMessage("No audio file loaded.", true);
+            return;
+        }
+        
+        if (lower.includes('stop music')) {
+            addUserMessage(txt);
+            const audio = document.getElementById('bg-music');
+            if(audio) audio.pause();
+            return;
+        }
+        
+        if (lower.includes('clear')) {
+             document.getElementById('chat-container').innerHTML = '';
+             return;
+        }
+
+        addUserMessage(txt);
+        publishMessage(txt);
+        addXP(10);
+    }
+
+    // --- 11. RENDERING ---
+    function addUserMessage(text) {
+        const container = document.getElementById('chat-container');
+        if(!container) return;
+        const time = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+        const msgDiv = document.createElement('div');
+        msgDiv.className = 'flex flex-row-reverse items-end gap-3 animate-fade-in';
+        msgDiv.innerHTML = `<div class="w-8 h-8 rounded-full bg-gradient-to-tr from-green-400 to-emerald-600 flex items-center justify-center border border-white/20 font-mono text-black text-xs font-bold flex-shrink-0">ME</div><div class="msg-user p-3 md:p-4 rounded-l-xl rounded-br-xl text-xs md:text-sm text-green-100 shadow-[0_4px_20px_rgba(0,0,0,0.3)] max-w-[80%] break-words"><div class="flex items-center gap-2 mb-1 opacity-80 text-[10px] md:text-xs font-mono text-green-400"><span>@${username.toUpperCase()}</span><span>${time}</span></div><p class="leading-relaxed text-gray-100 break-words">${escapeHtml(text)}</p></div>`;
+        container.appendChild(msgDiv);
+        scrollToBottom();
+    }
+
+    function addTermAiMessage(text, isAction) {
+        const container = document.getElementById('chat-container');
+        if(!container) return;
+        const cssClass = isAction ? 'border border-purple-500/50 shadow-[0_0_15px_rgba(168,85,247,0.2)]' : 'border border-white/10';
+        const msgDiv = document.createElement('div');
+        msgDiv.className = 'flex flex-row items-start gap-3 animate-fade-in';
+        msgDiv.innerHTML = `<div class="w-8 h-8 rounded-full bg-black border border-purple-500 flex items-center justify-center text-purple-400 font-mono text-[10px] flex-shrink-0 font-bold">AI</div><div class="flex-1"><div class="p-3 md:p-4 rounded-r-xl rounded-bl-xl bg-black/40 ${cssClass} text-xs md:text-sm text-gray-200 backdrop-blur-sm break-words"><p class="leading-relaxed break-words">${text}</p></div></div>`;
+        container.appendChild(msgDiv);
+        scrollToBottom();
+    }
+
+    function addSystemMessage(text) {
+        const container = document.getElementById('chat-container');
+        if(!container) return;
+        const msgDiv = document.createElement('div');
+        msgDiv.className = 'msg-system mx-auto w-fit max-w-[90%] p-2 md:p-3 rounded-xl text-xs md:text-sm text-cyan-100 border border-cyan-900/50 bg-black/60 shadow-[0_4px_20px_rgba(0,0,0,0.3)] animate-fade-in break-words text-center';
+        msgDiv.innerHTML = `<div class="flex items-center justify-center gap-2 mb-1 opacity-80 text-[10px] md:text-xs font-mono text-cyan-400"><span>⚠ SYSTEM</span></div><p class="leading-relaxed break-words whitespace-pre-wrap">${escapeHtml(text)}</p>`;
+        container.appendChild(msgDiv);
+        scrollToBottom();
+    }
+
+    function scrollToBottom() {
+        const c = document.getElementById('chat-container');
+        if(c) c.scrollTop = c.scrollHeight;
+    }
+
+    function connectMQTT() {
+        if (typeof mqtt === 'undefined') {
+            addSystemMessage("⚠️ MQTT offline - Chat is local only");
+            return;
+        }
+        const clientId = "termos-" + Math.random().toString(16).substr(2, 8);
+        mqttClient = mqtt.connect(MQTT_BROKER_URL, { clientId: clientId, clean: true, connectTimeout: 4000 });
+        mqttClient.on('connect', () => {
+            console.log("✅ MQTT Connected");
+            addSystemMessage("🌐 Connected to Multiverse");
+            mqttClient.subscribe('termchat/messages');
+        });
+        mqttClient.on('message', (topic, msg) => {
+            try {
+                const data = JSON.parse(msg.toString());
+                if (data.user && data.user !== username) {
+                    const container = document.getElementById('chat-container');
+                    if(container) {
+                        const msgDiv = document.createElement('div');
+                        msgDiv.className = 'flex flex-row items-end gap-3 animate-fade-in opacity-80';
+                        msgDiv.innerHTML = `<div class="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center border border-white/20 font-mono text-white text-xs">${String(data.user).substring(0,2).toUpperCase()}</div><div class="p-4 rounded-xl bg-slate-800/50 text-sm text-gray-300 max-w-[80%] border border-white/5"><div class="flex items-center gap-2 mb-1 opacity-70 text-xs font-mono text-gray-400"><span>@${String(data.user).toUpperCase()}</span></div><p class="leading-relaxed">${escapeHtml(data.text)}</p></div>`;
+                        container.appendChild(msgDiv);
+                        scrollToBottom();
+                    }
+                }
+            } catch (e) { console.error("MQTT error", e); }
+        });
+    }
+
+    function publishMessage(text) {
+        if (mqttClient && mqttClient.connected) {
+            mqttClient.publish('termchat/messages', JSON.stringify({ user: username, text: text, room: currentRoom }));
+        }
+    }
+
+    function addXP(amount) {
+        userStats.xp += amount;
+        if(userStats.xp > (userStats.level * 1000)) {
+            userStats.level++;
+            userStats.title = LEVELS[userStats.level] || 'GOD MODE';
+            addSystemMessage(`LEVEL UP! You are now ${userStats.title}`);
+        }
+        updateStatsUI();
+        localStorage.setItem('termos_stats', JSON.stringify(userStats));
+    }
+
+    function loadStats() {
+        const saved = localStorage.getItem('termos_stats');
+        if(saved) userStats = JSON.parse(saved);
+    }
+
+    function escapeHtml(text) {
+        if(!text) return "";
+        return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    }
+
+    // --- 12. MATRIX ANIMATION ---
+    function initMatrix(overrideColor = '#0F0') {
+        const c = document.getElementById('matrix-canvas');
+        if(!c) return;
+        const ctx = c.getContext('2d');
+        c.width = window.innerWidth; 
+        c.height = window.innerHeight;
+        const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@#$%^&*';
+        const fontSize = 14;
+        const columns = c.width / fontSize;
+        const drops = Array(Math.floor(columns)).fill(1);
+        if (window.matrixInterval) clearInterval(window.matrixInterval);
+        const rainColor = overrideColor; 
+        function draw() {
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.05)'; // Fade out effect
+            ctx.fillRect(0, 0, c.width, c.height);
+            ctx.font = fontSize + 'px monospace';
+            for(let i=0; i<drops.length; i++) {
+                const text = letters[Math.floor(Math.random()*letters.length)];
+                if(Math.random() > 0.98) ctx.fillStyle = '#ffffff'; // Highlight
+                else ctx.fillStyle = rainColor; 
+                ctx.fillText(text, i*fontSize, drops[i]*fontSize);
+                if(drops[i]*fontSize > c.height && Math.random() > 0.975) drops[i] = 0;
+                drops[i]++;
+            }
+        }
+        window.matrixInterval = setInterval(draw, 33);
+        window.addEventListener('resize', () => { 
+            c.width = window.innerWidth; 
+            c.height = window.innerHeight; 
+        });
+    }
+
+    // --- 13. VOICE RECOGNITION (Added Logic) ---
+    window.startVoiceRecognition = function() {
+        if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+            addSystemMessage("❌ Voice module not installed in this browser.");
+            return;
+        }
+
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        const recognition = new SpeechRecognition();
+        const voiceWave = document.getElementById('voice-wave');
+        
+        recognition.lang = 'en-US';
+        recognition.interimResults = false;
+        recognition.maxAlternatives = 1;
+
+        recognition.onstart = () => {
+            voiceWave.classList.remove('hidden');
+            addSystemMessage("🎤 Listening...");
+        };
+
+        recognition.onend = () => {
+            voiceWave.classList.add('hidden');
+        };
+
+        recognition.onresult = (event) => {
+            const transcript = event.results[0][0].transcript;
+            document.getElementById('chatInput').value = transcript;
+            handleSend();
+        };
+
+        recognition.onerror = (event) => {
+            voiceWave.classList.add('hidden');
+            addSystemMessage(`❌ Voice Error: ${event.error}`);
+        };
+
+        recognition.start();
+    }
+    </script>
 </body>
 </html>
