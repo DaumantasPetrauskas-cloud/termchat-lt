@@ -1,402 +1,274 @@
-/* ================= CONFIGURATION ================= */
-const APP_CONFIG = {
-    version: "2.5.0",
-    mqttBroker: "wss://test.mosquitto.org:8081/mqtt", // Public broker
-    chatTopic: "termchat-lt/public"
+/* ================= CONFIG ================= */
+const CONFIG = {
+    version: "2.6.0",
+    groqEndpoint: "https://api.groq.com/openai/v1/chat/completions",
+    model: "mixtral-8x7b-32768",
+    mqttBroker: "wss://test.mosquitto.org:8081/mqtt"
 };
 
-/* ================= LIVING ROOM DATA ================= */
-const ZONES = {
-    library: {
-        id: 'library',
-        name: 'Knowledge Library',
-        icon: '📚',
-        color: 'text-yellow-400',
-        tools: ['librarian', 'book', 'research', 'tutor'],
-        welcome: "Welcome to the Knowledge Library. I can answer questions, write stories, or teach you languages."
-    },
-    studio: {
-        id: 'studio',
-        name: 'Creative Studio',
-        icon: '🎨',
-        color: 'text-pink-400',
-        tools: ['artist', 'music', 'video', '3d'],
-        welcome: "Welcome to the Creative Studio! Let's paint, compose music, or design something amazing."
-    },
-    workshop: {
-        id: 'workshop',
-        name: 'Tech Workshop',
-        icon: '💻',
-        color: 'text-blue-400',
-        tools: ['code', 'app', 'web', 'data'],
-        welcome: "Systems online. Ready to code, debug, or build applications."
-    },
-    lounge: {
-        id: 'lounge',
-        name: 'Entertainment Lounge',
-        icon: '🎭',
-        color: 'text-orange-400',
-        tools: ['game', 'story', 'joke', 'trivia'],
-        welcome: "Relax! Would you like to play a game, hear a story, or laugh at some jokes?"
-    },
-    thinktank: {
-        id: 'thinktank',
-        name: 'Think Tank',
-        icon: '🧠',
-        color: 'text-green-400',
-        tools: ['solve', 'brainstorm', 'strategy', 'innovate'],
-        welcome: "Problem solving mode activated. What challenge can we tackle today?"
-    }
-};
-
-/* ================= STATE MANAGEMENT ================= */
+/* ================= STATE ================= */
 const state = {
-    username: "GUEST_" + Math.floor(Math.random() * 1000),
+    username: "USER_" + Math.floor(Math.random() * 9999),
     xp: 0,
     level: 1,
-    mode: 'local', // local, chat, livingroom, admin
-    currentZone: null, // 'library', 'studio', etc.
-    currentTool: null,
-    connected: false
+    mode: 'local', // local, chat, api, livingroom
+    apiKey: null,
+    currentZone: null, // For Living Room
+    mqttClient: null
 };
 
-/* ================= DOM ELEMENTS ================= */
-const bootScreen = document.getElementById('terminal-boot');
-const mainLayout = document.getElementById('main-layout');
-const terminalContent = document.getElementById('terminal-content');
-const bootStatus = document.getElementById('boot-status');
-const chatContainer = document.getElementById('chat-container');
-const chatInput = document.getElementById('chatInput');
-const userDisplay = document.getElementById('user-display');
-const roomTitle = document.getElementById('room-title');
-const xpText = document.getElementById('xp-text');
-const lvlText = document.getElementById('lvl-text');
-const xpBar = document.getElementById('xp-bar');
+/* ================= ZONES DATA ================= */
+const ZONES = {
+    library: { name: "Knowledge Library", icon: "📚", welcome: "Welcome to the Library. What do you want to learn?" },
+    studio: { name: "Creative Studio", icon: "🎨", welcome: "Studio active. Let's create something." },
+    workshop: { name: "Tech Workshop", icon: "💻", welcome: "Workshop online. Ready to code." },
+    lounge: { name: "Entertainment Lounge", icon: "🎭", welcome: "Relax! Games and stories loaded." },
+    thinktank: { name: "Think Tank", icon: "🧠", welcome: "Brainstorming mode activated." }
+};
 
 /* ================= INITIALIZATION ================= */
-window.addEventListener('load', () => {
-    userDisplay.textContent = "@" + state.username;
-    runBootSequence();
+window.onload = () => {
+    document.getElementById('user-display').textContent = "@" + state.username;
     initMatrix();
-});
+    runBootSequence();
+};
 
-/* ================= BOOT SEQUENCE ================= */
+/* ================= BOOT ================= */
 function runBootSequence() {
-    const lines = [
-        "Initializing TermAi Living Room v" + APP_CONFIG.version + "...",
-        "Loading Environment Modules...",
-        " > Library... OK",
-        " > Studio... OK",
-        " > Workshop... OK",
-        "Calibrating AI Neural Interfaces...",
-        "Connecting to Mainframe...",
-        "System Ready."
-    ];
-
+    const logs = ["Loading Kernel...", "Mounting File System...", "Connecting to Matrix...", "System Ready."];
+    const term = document.getElementById('terminal-content');
     let i = 0;
     const interval = setInterval(() => {
-        if (i < lines.length) {
-            addLog(lines[i]);
+        if (i < logs.length) {
+            const p = document.createElement('div');
+            p.textContent = `> ${logs[i]}`;
+            term.appendChild(p);
             i++;
         } else {
             clearInterval(interval);
-            bootStatus.textContent = "SYSTEM READY. SELECT MODE.";
-            bootStatus.classList.remove('animate-pulse');
-            bootStatus.classList.add('text-green-400');
+            document.getElementById('boot-status').textContent = "SELECT MODE";
+            document.getElementById('boot-status').classList.remove('animate-pulse');
         }
-    }, 300);
+    }, 400);
 }
 
-function addLog(text) {
-    const p = document.createElement('div');
-    const time = new Date().toLocaleTimeString('en-US', { hour12: false });
-    p.innerHTML = `<span class="text-gray-500">[${time}]</span> <span class="text-green-500">></span> ${text}`;
-    terminalContent.appendChild(p);
-    terminalContent.scrollTop = terminalContent.scrollHeight;
-}
-
-/* ================= APP NAVIGATION ================= */
-window.enterApp = function(mode) {
-    state.mode = mode;
-    
-    // UI Switch
-    bootScreen.classList.add('hidden');
-    mainLayout.classList.remove('hidden');
-    
-    // Mode Setup
-    if (mode === 'livingroom') {
-        roomTitle.textContent = "AI LIVING ROOM";
-        addSystemMessage("🏠 Welcome to the AI Living Room!");
-        setTimeout(() => {
-            addSystemMessage("Type 'enter library', 'studio', 'workshop', 'lounge', or 'thinktank' to explore.");
-        }, 1000);
-    } else if (mode === 'chat') {
-        roomTitle.textContent = "GLOBAL CHAT";
-        connectMQTT();
-        addSystemMessage("Connected to Global Matrix.");
-    } else if (mode === 'termai') {
-        roomTitle.textContent = "TERM_AI CONSOLE";
-        addSystemMessage("Direct AI connection established.");
-    } else {
-        roomTitle.textContent = "ADMIN CONSOLE";
-        addSystemMessage("Root access granted.");
+/* ================= NAVIGATION ================= */
+window.enterApp = (mode) => {
+    if (mode === 'api') {
+        document.getElementById('api-modal').classList.remove('hidden');
+        return;
     }
-    
-    setTimeout(() => chatInput.focus(), 100);
+    switchLayout(mode);
 };
 
+window.submitApiKey = () => {
+    const key = document.getElementById('api-key-input').value;
+    if (key) {
+        state.apiKey = key;
+        document.getElementById('api-modal').classList.add('hidden');
+        switchLayout('api');
+    }
+};
+
+window.cancelApiKey = () => {
+    document.getElementById('api-modal').classList.add('hidden');
+};
+
+function switchLayout(mode) {
+    document.getElementById('terminal-boot').classList.add('hidden');
+    document.getElementById('main-layout').classList.remove('hidden');
+    state.mode = mode;
+    
+    const title = document.getElementById('room-title');
+    if (mode === 'chat') { title.textContent = "GLOBAL CHAT"; connectMQTT(); addMsg("System", "Connected to Global Chat.", "system"); }
+    else if (mode === 'api') { title.textContent = "GROQ AI"; addMsg("System", "API Connected. Use /ai [prompt]", "system"); }
+    else if (mode === 'livingroom') { title.textContent = "LIVING ROOM"; addMsg("System", "Welcome Home! Type 'enter library' to start.", "system"); }
+    else { title.textContent = "LOCAL MODE"; addMsg("System", "Offline mode active.", "system"); }
+    
+    setTimeout(() => document.getElementById('chatInput').focus(), 100);
+}
+
+/* ================= CHAT LOGIC ================= */
+const chatInput = document.getElementById('chatInput');
+chatInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') handleSend(); });
+
+window.handleSend = () => {
+    const text = chatInput.value.trim();
+    if (!text) return;
+    addMsg(state.username, text, 'user');
+    chatInput.value = "";
+
+    if (text.startsWith('/')) {
+        handleCommand(text);
+    } else if (state.mode === 'livingroom') {
+        handleLivingRoom(text);
+    } else if (state.mode === 'api') {
+        talkToGroq(text);
+    } else if (state.mode === 'chat') {
+        publishMQTT(text);
+    } else {
+        // Local fallback
+        setTimeout(() => addMsg("TermAi", "I heard you: " + text, "ai"), 500);
+    }
+};
+
+function handleCommand(raw) {
+    const parts = raw.split(' ');
+    const cmd = parts[0].toLowerCase();
+    const args = parts.slice(1).join(' ');
+
+    if (cmd === '/ai') {
+        if (!args) return addMsg("System", "Usage: /ai [prompt]", "system");
+        if (state.mode !== 'api') addMsg("System", "Switching to API mode for this request...", "system");
+        talkToGroq(args);
+    } else if (cmd === '/help') {
+        addMsg("System", "Commands: /ai [prompt], /clear, /help", "system");
+    } else if (cmd === '/clear') {
+        document.getElementById('chat-container').innerHTML = '';
+    }
+}
+
+/* ================= AI LOGIC ================= */
+async function talkToGroq(prompt) {
+    const loadingId = addMsg("AI", "Thinking...", "loading");
+    
+    try {
+        if (!state.apiKey) throw new Error("API Key missing.");
+
+        const res = await fetch(CONFIG.groqEndpoint, {
+            method: "POST",
+            headers: { "Authorization": `Bearer ${state.apiKey}`, "Content-Type": "application/json" },
+            body: JSON.stringify({
+                messages: [{ role: "system", content: "You are TermAi." }, { role: "user", content: prompt }],
+                model: CONFIG.model
+            })
+        });
+
+        if (!res.ok) throw new Error(`API Error: ${res.status}`);
+        const data = await res.json();
+        const reply = data.choices[0].message.content;
+
+        document.getElementById(loadingId).remove();
+        addMsg("Groq AI", reply, "ai");
+        gainXP(25);
+
+    } catch (err) {
+        document.getElementById(loadingId)?.remove();
+        addMsg("System", "Error: " + err.message, "system");
+    }
+}
+
 /* ================= LIVING ROOM LOGIC ================= */
-function handleLivingRoomInput(text) {
-    const lowerText = text.toLowerCase();
-
-    // 1. Navigation Logic
-    if (lowerText.includes('enter') || lowerText.includes('go to') || lowerText.includes('visit')) {
-        for (const key in ZONES) {
-            if (lowerText.includes(key) || lowerText.includes(ZONES[key].name.toLowerCase())) {
-                changeZone(key);
-                return;
-            }
+function handleLivingRoom(text) {
+    const lower = text.toLowerCase();
+    
+    // Navigation
+    for (const key in ZONES) {
+        if (lower.includes(key) || lower.includes(ZONES[key].name.toLowerCase())) {
+            state.currentZone = key;
+            document.getElementById('room-title').textContent = ZONES[key].icon + " " + ZONES[key].name.toUpperCase();
+            addMsg(ZONES[key].name, ZONES[key].welcome, "ai");
+            gainXP(10);
+            return;
         }
-        addMessage("System", "I didn't recognize that room. Try: Library, Studio, Workshop, Lounge, or Think Tank.", 'system');
-        return;
     }
 
-    // 2. Zone-Specific Interactions
+    // Zone Interaction
     if (!state.currentZone) {
-        addMessage("System", "Please enter a zone first (e.g., 'enter studio').", 'system');
+        addMsg("System", "Enter a zone first (e.g., 'enter library').", "system");
         return;
     }
 
-    // Mock Tool Logic based on keywords
-    const currentZoneData = ZONES[state.currentZone];
-    addMessage(currentZoneData.name, "Processing request: '" + text + "'...", 'ai');
-
+    // Mock Zone Responses
     setTimeout(() => {
-        let response = "";
-        if (state.currentZone === 'library') {
-            response = generateLibraryResponse(text);
-        } else if (state.currentZone === 'studio') {
-            response = generateStudioResponse(text);
-        } else if (state.currentZone === 'workshop') {
-            response = generateWorkshopResponse(text);
-        } else if (state.currentZone === 'lounge') {
-            response = generateLoungeResponse(text);
-        } else if (state.currentZone === 'thinktank') {
-            response = generateThinkTankResponse(text);
-        }
-        
-        addMessage(currentZoneData.name, response, 'ai');
+        let response = "I'm listening. Tell me more.";
+        if (state.currentZone === 'library') response = "I have archived that data. Need a summary?";
+        if (state.currentZone === 'studio') response = "Generating creative concept... Done.";
+        if (state.currentZone === 'workshop') response = "Code snippet generated successfully.";
+        if (state.currentZone === 'lounge') response = "That's funny! Tell me another.";
+        if (state.currentZone === 'thinktank') response = "Brainstorming complete. Here is a solution.";
+        addMsg(ZONES[state.currentZone].name, response, "ai");
     }, 800);
 }
 
-function changeZone(zoneKey) {
-    state.currentZone = zoneKey;
-    const zone = ZONES[zoneKey];
-    
-    // Update Header
-    roomTitle.textContent = `${zone.icon} ${zone.name.toUpperCase()}`;
-    
-    // Visual Feedback
-    addSystemMessage(`--- Entering ${zone.name} ---`);
-    addMessage(zone.name, zone.welcome, 'ai');
-    gainXP(20);
-}
-
-/* ================= GENERATIVE RESPONSES (MOCK AI) ================= */
-function generateLibraryResponse(input) {
-    if (input.includes('write') || input.includes('story')) return "Once upon a time in a digital realm...";
-    if (input.includes('explain')) return "This concept involves the interaction between data structures and algorithms...";
-    return "I've archived that information in the main database. Is there anything else you'd like to research?";
-}
-
-function generateStudioResponse(input) {
-    if (input.includes('paint') || input.includes('image')) return "Generating visual composition... 🎨 [Image Placeholder: A digital sunset over mountains]";
-    if (input.includes('music')) return "Composing melody... 🎵 [Audio Placeholder: Upbeat Synthwave track]";
-    return "I've sketched a draft for you. Would you like to refine the colors or add more details?";
-}
-
-function generateWorkshopResponse(input) {
-    if (input.includes('code') || input.includes('function')) return "Here is the Python snippet you requested:\n`def init_system():\n  return 'Online'`";
-    if (input.includes('debug')) return "Error found on line 42: Missing semicolon. Fixing...";
-    return "I've compiled the build. Tests passed successfully.";
-}
-
-function generateLoungeResponse(input) {
-    if (input.includes('game')) return "Starting Trivia! Question: What is the capital of Lithuania?";
-    if (input.includes('joke')) return "Why do programmers prefer dark mode? Because light attracts bugs!";
-    return "That's entertaining! Let's keep the vibe going.";
-}
-
-function generateThinkTankResponse(input) {
-    if (input.includes('solve') || input.includes('problem')) return "Analyzing variables... Solution A: Efficiency increase. Solution B: Cost reduction.";
-    if (input.includes('idea')) return "Innovation suggestion: Combine AI with IoT for smart home automation.";
-    return "Brainstorming session complete. Here are 3 strategic options...";
-}
-
-/* ================= CHAT SYSTEM ================= */
-chatInput.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') handleSend();
-});
-
-window.handleSend = function() {
-    const text = chatInput.value.trim();
-    if (!text) return;
-
-    // 1. Add User Message
-    addMessage(state.username, text, 'user');
-    chatInput.value = "";
-
-    // 2. Route Logic
-    if (state.mode === 'livingroom') {
-        handleLivingRoomInput(text);
-    } else if (state.mode === 'chat' && state.mqttClient) {
-        // MQTT
-        state.mqttClient.publish(APP_CONFIG.chatTopic, JSON.stringify({
-            user: state.username,
-            text: text,
-            timestamp: Date.now()
-        }));
-    } else if (state.mode === 'termai') {
-        // Generic AI
-        setTimeout(() => addMessage("TermAi", "I processed: " + text, 'ai'), 1000);
-    } else {
-        addSystemMessage("Command executed locally.");
-    }
-};
-
-function addMessage(user, text, type) {
+/* ================= UTILITIES ================= */
+function addMsg(user, text, type) {
+    const container = document.getElementById('chat-container');
     const div = document.createElement('div');
     div.className = "flex flex-col gap-1 animate-fade-in";
     
-    let colorClass = "text-gray-300";
-    let bgClass = "bg-white/5";
-    if (type === 'user') { colorClass = "text-purple-400 font-bold"; bgClass = "bg-purple-500/10"; }
-    if (type === 'ai') { colorClass = "text-green-400 font-bold"; bgClass = "bg-green-500/10"; }
-    if (type === 'system') { 
-        div.innerHTML = `<div class="text-center text-xs text-gray-500 my-2 font-mono truncate">--- ${text} ---</div>`; 
-        chatContainer.appendChild(div);
-        chatContainer.scrollTop = chatContainer.scrollHeight;
-        return; 
+    // Loading handling
+    if (type === 'loading') {
+        div.id = text; // Use text as ID hack for removal
+        div.innerHTML = `<span class="text-purple-400 text-xs animate-pulse">🤖 AI is thinking...</span>`;
+        container.appendChild(div);
+        container.scrollTop = container.scrollHeight;
+        return text; // Return ID
     }
 
-    div.innerHTML = `
-        <span class="text-[10px] text-gray-500 uppercase tracking-wider ml-1">${user}</span>
-        <div class="${colorClass} ${bgClass} p-3 rounded-lg border border-white/5 break-words text-sm whitespace-pre-wrap shadow-sm">
-            ${text}
-        </div>
-    `;
-    
-    chatContainer.appendChild(div);
-    chatContainer.scrollTop = chatContainer.scrollHeight;
-    if (type === 'user' || type === 'ai') gainXP(5);
+    if (type === 'system') {
+        div.innerHTML = `<div class="text-center text-[10px] text-gray-500 my-2">--- ${text} ---</div>`;
+    } else {
+        const color = type === 'user' ? 'text-purple-400' : 'text-green-400';
+        div.innerHTML = `
+            <span class="text-[10px] text-gray-500 uppercase">${user}</span>
+            <div class="${color} bg-white/5 p-2 rounded border border-white/5 text-sm break-words">${text}</div>
+        `;
+    }
+    container.appendChild(div);
+    container.scrollTop = container.scrollHeight;
 }
 
-function addSystemMessage(text) {
-    addMessage("System", text, 'system');
+function gainXP(amount) {
+    state.xp += amount;
+    const next = state.level * 100;
+    if (state.xp >= next) {
+        state.level++;
+        state.xp = 0;
+        addMsg("System", `LEVEL UP! LVL ${state.level}`, "system");
+    }
+    document.getElementById('xp-text').textContent = `XP: ${state.xp}`;
+    document.getElementById('lvl-text').textContent = `LVL. ${state.level}`;
+    document.getElementById('xp-bar').style.width = `${(state.xp/next)*100}%`;
 }
 
 /* ================= MQTT ================= */
 function connectMQTT() {
     try {
-        const clientId = 'termchat_' + Math.random().toString(16).substr(2, 8);
-        const client = mqtt.connect(APP_CONFIG.mqttBroker, { clientId: clientId });
-
-        client.on('connect', () => {
-            console.log("MQTT Connected");
-            state.connected = true;
-            state.mqttClient = client;
-            client.subscribe(APP_CONFIG.chatTopic);
+        state.mqttClient = mqtt.connect(CONFIG.mqttBroker);
+        state.mqttClient.on('connect', () => {
+            state.mqttClient.subscribe("termchat-lt/public");
         });
-
-        client.on('message', (topic, message) => {
-            if (state.mode !== 'chat') return;
-            try {
-                const data = JSON.parse(message.toString());
-                if (data.user !== state.username) {
-                    addMessage(data.user, data.text, 'remote');
-                }
-            } catch (e) { console.error(e); }
+        state.mqttClient.on('message', (t, m) => {
+            const d = JSON.parse(m.toString());
+            if (d.user !== state.username) addMsg(d.user, d.text, 'remote');
         });
-    } catch (e) { console.log("MQTT Error"); }
+    } catch(e) {}
 }
 
-/* ================= GAMIFICATION & MATRIX ================= */
-function gainXP(amount) {
-    state.xp += amount;
-    const nextLevelXp = state.level * 100;
-    if (state.xp >= nextLevelXp) {
-        state.level++;
-        state.xp = 0;
-        addSystemMessage(`LEVEL UP! WELCOME TO LEVEL ${state.level}`);
+function publishMQTT(text) {
+    if (state.mqttClient && state.mqttClient.connected) {
+        state.mqttClient.publish("termchat-lt/public", JSON.stringify({ user: state.username, text: text }));
     }
-    updateUI();
 }
 
-function updateUI() {
-    xpText.textContent = `XP: ${state.xp}`;
-    lvlText.textContent = `LVL. ${state.level} ${getTitle(state.level)}`;
-    const nextLevelXp = state.level * 100;
-    const percent = (state.xp / nextLevelXp) * 100;
-    xpBar.style.width = `${percent}%`;
-}
-
-function getTitle(level) {
-    if (level < 5) return "NEWBIE";
-    if (level < 10) return "EXPLORER";
-    if (level < 20) return "CREATOR";
-    return "ARCHITECT";
-}
-
-/* ================= BACKGROUND EFFECT ================= */
+/* ================= MATRIX BG ================= */
 function initMatrix() {
-    const canvas = document.getElementById('matrix-canvas');
-    const ctx = canvas.getContext('2d');
-    
-    // Resize fix
-    const resize = () => {
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
-    };
-    window.addEventListener('resize', resize);
-    resize();
-
-    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ123456789@#$%^&*()*&^%";
-    const fontSize = 14;
-    let columns = canvas.width / fontSize;
+    const c = document.getElementById('matrix-canvas');
+    const ctx = c.getContext('2d');
+    c.width = window.innerWidth; c.height = window.innerHeight;
+    const chars = "010101ABCDEF";
     const drops = [];
-
-    for (let i = 0; i < columns; i++) drops[i] = 1;
-
-    function draw() {
-        ctx.fillStyle = "rgba(0, 0, 0, 0.05)";
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        
-        ctx.fillStyle = "#0F0";
-        ctx.font = fontSize + "px monospace";
-
-        for (let i = 0; i < drops.length; i++) {
-            const text = chars[Math.floor(Math.random() * chars.length)];
-            ctx.fillText(text, i * fontSize, drops[i] * fontSize);
-
-            if (drops[i] * fontSize > canvas.height && Math.random() > 0.975) {
-                drops[i] = 0;
-            }
+    for(let x=0; x<c.width/14; x++) drops[x]=1;
+    setInterval(()=>{
+        ctx.fillStyle="rgba(0,0,0,0.05)";
+        ctx.fillRect(0,0,c.width,c.height);
+        ctx.fillStyle="#0F0";
+        ctx.font="14px monospace";
+        for(let i=0;i<drops.length;i++){
+            ctx.fillText(chars[Math.floor(Math.random()*chars.length)], i*14, drops[i]*14);
+            if(drops[i]*14>c.height && Math.random()>0.975) drops[i]=0;
             drops[i]++;
         }
-    }
-    setInterval(draw, 33);
+    }, 33);
 }
-
-/* ================= VOICE ================= */
-window.startVoiceRecognition = function() {
-    if (!('webkitSpeechRecognition' in window)) {
-        alert("Voice not supported.");
-        return;
-    }
-    const recognition = new webkitSpeechRecognition();
-    recognition.lang = 'en-US';
-    recognition.start();
-    recognition.onresult = function(event) {
-        chatInput.value = event.results[0][0].transcript;
-    };
-};
