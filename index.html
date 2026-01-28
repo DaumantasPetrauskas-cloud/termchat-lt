@@ -1,99 +1,83 @@
 <!DOCTYPE html>
-<!-- TermAi Master Build v2.5 (Living Room Edition) -->
 <html lang="en">
 <head>
-    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-    <meta http-equiv="Pragma" content="no-cache">
-    <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="theme-color" content="#000000">
-    <title>TERM_AI: LIVING ROOM v2.5</title>
-    
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TERM_AI: LIVING ROOM v2.6</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    
-    <!-- MQTT Library -->
+    <!-- MQTT -->
     <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
-
-    <!-- Custom Styles -->
+    <!-- Styles -->
     <link rel="stylesheet" href="style.css">
 </head>
-<body class="bg-gradient-to-br from-blue-900 to-black text-white overflow-hidden min-h-screen h-screen font-mono antialiased selection:bg-purple-500 selection:text-black" style="-webkit-user-select: none; user-select: none;">
+<body class="bg-black text-white overflow-hidden h-screen font-mono selection:bg-purple-500 selection:text-white">
 
-    <!-- MATRIX CANVAS (Background) -->
+    <!-- MATRIX BACKGROUND -->
     <canvas id="matrix-canvas" class="fixed top-0 left-0 w-full h-full z-0"></canvas>
 
     <!-- BOOT SCREEN -->
-    <div id="terminal-boot" class="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/95 backdrop-blur-md p-2 sm:p-4">
-        <div class="w-full max-w-2xl p-3 sm:p-6 md:p-8 border border-purple-500/30 bg-black shadow-[0_0_50px_rgba(168,85,247,0.2)] rounded-lg">
-            <div class="text-xs text-purple-500 mb-2 font-bold">v2.5.0 [LIVING ROOM UPDATE]</div>
+    <div id="terminal-boot" class="fixed inset-0 z-50 flex items-center justify-center bg-black/95 p-4">
+        <div class="w-full max-w-2xl border border-purple-500/30 bg-black p-6 rounded-lg shadow-[0_0_30px_rgba(168,85,247,0.2)]">
+            <div class="text-xs text-purple-400 font-bold mb-2">v2.6.0 [GROQ API + LIVING ROOM]</div>
+            <div id="terminal-content" class="h-48 overflow-y-auto mb-4 text-xs text-gray-400 font-mono custom-scrollbar"></div>
             
-            <!-- Terminal Output -->
-            <div id="terminal-content" class="h-48 sm:h-56 md:h-64 overflow-y-auto mb-4 text-xs sm:text-sm font-mono leading-relaxed custom-scrollbar text-gray-300" style="word-break: break-word; word-wrap: break-word;"></div>
-            
-            <div class="flex flex-col sm:flex-row justify-between items-center border-t border-purple-500/30 pt-4 gap-3">
-                <div id="boot-status" class="text-purple-400 text-xs animate-pulse w-full sm:w-auto text-center sm:text-left">INITIALIZING...</div>
-                
-                <!-- Boot Buttons -->
-                <div class="flex flex-wrap gap-2 w-full sm:w-auto justify-center">
-                    <button onclick="enterApp('chat')" class="px-3 py-2 border border-green-500/50 text-green-400 text-xs hover:bg-green-500/20 transition rounded font-mono">[1] CHAT</button>
-                    <button onclick="enterApp('livingroom')" class="px-3 py-2 border border-blue-400/50 text-blue-300 text-xs hover:bg-blue-500/20 transition rounded font-bold font-mono shadow-[0_0_10px_rgba(59,130,246,0.4)]">[2] LIVING ROOM</button>
-                    <button onclick="enterApp('termai')" class="px-3 py-2 border border-purple-500/50 text-purple-400 text-xs hover:bg-purple-500/20 transition rounded font-mono">[3] TERM_AI</button>
-                    <button onclick="enterApp('admin')" class="px-3 py-2 border border-red-500/50 text-red-500 text-xs hover:bg-red-500/20 transition rounded font-bold font-mono">[A] ADMIN</button>
+            <div class="border-t border-purple-500/30 pt-4 flex flex-col gap-3">
+                <div id="boot-status" class="text-purple-400 text-xs animate-pulse">INITIALIZING...</div>
+                <div class="grid grid-cols-2 gap-2">
+                    <button onclick="enterApp('chat')" class="p-2 border border-green-500/50 text-green-400 text-xs hover:bg-green-500/20 rounded">[1] CHAT</button>
+                    <button onclick="enterApp('api')" class="p-2 border border-orange-500/50 text-orange-400 text-xs hover:bg-orange-500/20 rounded font-bold">[2] API AI</button>
+                    <button onclick="enterApp('livingroom')" class="p-2 border border-blue-500/50 text-blue-400 text-xs hover:bg-blue-500/20 rounded">[3] LIVING ROOM</button>
+                    <button onclick="enterApp('local')" class="p-2 border border-gray-500/50 text-gray-400 text-xs hover:bg-gray-500/20 rounded">[4] LOCAL</button>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- MAIN APP LAYOUT (Hidden initially) -->
-    <div id="main-layout" class="hidden relative z-10 flex flex-col h-screen w-screen sm:h-full sm:w-auto sm:max-w-4xl sm:mx-auto sm:border-x sm:border-white/5 bg-black/40 backdrop-blur-md">
+    <!-- API KEY MODAL -->
+    <div id="api-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm">
+        <div class="w-full max-w-md border border-orange-500/50 bg-black p-6 rounded-lg">
+            <h3 class="text-orange-400 font-bold text-lg mb-2">🔑 ENTER GROQ API KEY</h3>
+            <input type="password" id="api-key-input" placeholder="gsk_..." class="w-full bg-black border border-orange-500/30 rounded p-3 text-orange-300 mb-4 outline-none font-mono text-sm">
+            <div class="flex justify-end gap-2">
+                <button onclick="submitApiKey()" class="px-4 py-2 bg-orange-600 hover:bg-orange-500 text-white rounded font-bold text-sm">CONNECT</button>
+                <button onclick="cancelApiKey()" class="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded text-sm">CANCEL</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MAIN APP -->
+    <div id="main-layout" class="hidden relative z-10 flex flex-col h-screen max-w-4xl mx-auto border-x border-white/5 bg-black/40 backdrop-blur-md">
         
         <!-- HEADER -->
-        <header class="flex-none p-3 sm:p-4 border-b border-white/10 bg-black/60 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4">
-            <div class="flex flex-col min-w-0 flex-1">
-                <div id="room-title" class="text-xs text-gray-400 uppercase tracking-widest mb-1 truncate">LIVING_ROOM</div>
-                <div id="user-display" class="text-base sm:text-lg font-bold text-white drop-shadow-[0_0_5px_rgba(255,255,255,0.5)] truncate">@GUEST</div>
+        <header class="p-3 border-b border-white/10 bg-black/60 flex justify-between items-center">
+            <div>
+                <div id="room-title" class="text-[10px] text-gray-400 uppercase tracking-widest">MODE: LOCAL</div>
+                <div id="user-display" class="text-sm font-bold text-white">@USER</div>
             </div>
-            
-            <!-- XP Bar -->
-            <div class="w-full sm:w-64 flex flex-col gap-1">
-                <div class="flex justify-between text-[10px] sm:text-xs text-purple-400 font-mono gap-2">
-                    <span id="lvl-text" class="truncate text-xs">LVL. 1 NEWBIE</span>
-                    <span id="xp-text" class="flex-shrink-0 text-xs">XP: 0</span>
+            <div class="w-32">
+                <div class="flex justify-between text-[10px] text-purple-400 mb-1">
+                    <span id="lvl-text">LVL. 1</span>
+                    <span id="xp-text">XP: 0</span>
                 </div>
-                <div class="w-full h-2 sm:h-1.5 bg-gray-800 rounded-full overflow-hidden">
+                <div class="h-1.5 bg-gray-800 rounded-full overflow-hidden">
                     <div id="xp-bar" class="h-full bg-gradient-to-r from-purple-500 to-pink-400 w-0 transition-all duration-500"></div>
                 </div>
             </div>
         </header>
 
         <!-- CHAT AREA -->
-        <main id="chat-container" class="flex-1 overflow-y-auto p-2 sm:p-4 space-y-3 sm:space-y-4 custom-scrollbar">
-            <!-- Messages appear here -->
-        </main>
+        <main id="chat-container" class="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar"></main>
 
-        <!-- INPUT AREA -->
-        <footer class="flex-none p-3 sm:p-4 bg-black/80 border-t border-white/10 backdrop-blur-lg safe-area-bottom">
+        <!-- INPUT -->
+        <footer class="p-3 bg-black/80 border-t border-white/10">
             <div class="flex gap-2">
-                <input type="text" id="chatInput" placeholder="Type a command..." autocomplete="off" spellcheck="false" class="flex-1 bg-black/50 border border-purple-500/30 rounded px-3 sm:p-4 py-3 text-purple-400 placeholder-gray-600 focus:outline-none focus:border-purple-500 focus:shadow-[0_0_10px_rgba(168,85,247,0.2)] transition font-mono text-xs sm:text-sm" style="-webkit-text-fill-color: #c084fc; -webkit-box-shadow: inset 0 0 0px 1000px #000000;">
-                <button onclick="startVoiceRecognition()" class="px-2 sm:px-3 py-2 bg-gray-800 text-white rounded hover:bg-gray-700 transition border border-gray-600 flex-shrink-0" title="Voice Input">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 sm:h-5 sm:w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" /></svg>
-                </button>
-                <button onclick="handleSend()" class="px-3 sm:px-6 py-2 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded transition shadow-[0_0_15px_rgba(168,85,247,0.4)] text-xs sm:text-sm flex-shrink-0">SEND</button>
+                <input type="text" id="chatInput" placeholder="Type a message..." class="flex-1 bg-black/50 border border-purple-500/30 rounded px-3 py-2 text-purple-400 outline-none text-xs sm:text-sm">
+                <button onclick="handleSend()" class="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded font-bold text-xs">SEND</button>
             </div>
         </footer>
-
-        <!-- Background Music Element -->
-        <audio id="bg-music" loop>
-            <source src="bg-music.mp3" type="audio/mpeg">
-        </audio>
-
     </div>
 
-    <!-- JAVASCRIPT -->
     <script src="script.js"></script>
 </body>
 </html>
