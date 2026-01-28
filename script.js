@@ -1,9 +1,11 @@
 // =========================================================================
-//      M   TERMOS LT: ARCHITECT EDITION v2.3 (TERM_AI MASTER)
+//      M   TERMOS LT: ARCHITECT EDITION v2.4 (TERM_AI MASTER)
 // =========================================================================
 
 // --- 1. CONFIGURATION ---
-let GROQ_API_KEY = localStorage.getItem('termos_groq_key') || ""; 
+// KEY INTEGRATED: The key is now hardcoded as default.
+// If you want to change it later via the UI, it will save to LocalStorage and override this.
+let GROQ_API_KEY = localStorage.getItem('termos_groq_key') || "42b0a4fbe60e4568ba1b74d5e8d030d6.xSVMYljtqVXmRr33"; 
 let ZHIPU_API_KEY = localStorage.getItem('termos_zhipu_key') || ""; 
 let USE_LOCAL_AI = false;
 const MQTT_BROKER_URL = 'wss://broker.emqx.io:8084/mqtt'; 
@@ -60,7 +62,7 @@ async function runTerminalBoot() {
     const statusEl = document.getElementById('boot-status');
     
     const presentationText = [
-        "INITIALIZING TERMOS LT v2.3...",
+        "INITIALIZING TERMOS LT v2.4...",
         "Loading kernel modules... [OK]",
         "Aggregating Neural Cores... [OK]",
         "",
@@ -132,6 +134,8 @@ async function enterApp(mode) {
         adminMode = false;
         userRole = 'USER';
         
+        // Since key is hardcoded, we only prompt if user specifically wants to change it later,
+        // or if somehow both keys are empty (which they won't be now).
         if (!GROQ_API_KEY && !ZHIPU_API_KEY) {
             const wantGroq = confirm(">>> NO API KEYS DETECTED.\n\nTermAi requires Groq or Zhipu keys for full intelligence.\n\nAdd Groq Key now?");
             if (wantGroq) {
@@ -296,7 +300,7 @@ async function talkToTermAi(prompt) {
         } catch (e) { console.warn("Zhipu failed:", e); }
     }
 
-    // 2. Fallback to Groq
+    // 2. Fallback to Groq (Hardcoded Key)
     if (!success && GROQ_API_KEY && GROQ_API_KEY.length > 10) {
         try {
             providerUsed = "Groq (Mixtral)";
@@ -376,10 +380,10 @@ function handleSend() {
 function processCommand(txt) {
     const lower = txt.toLowerCase();
 
-    // --- MAIN FEATURES LIST (Requested) ---
+    // --- MAIN FEATURES LIST ---
     if (lower === '/help' || lower === 'help' || lower === '?' || lower === '/features') {
         const featureList = `
-🛠 TERM_AI BUILD v2.3 FEATURES
+🛠 TERM_AI BUILD v2.4 FEATURES
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 🧠 UNIFIED INTELLIGENCE:
    • TermAi (Master Controller)
