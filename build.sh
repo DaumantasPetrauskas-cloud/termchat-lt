@@ -1,14 +1,23 @@
 #!/bin/bash
-# Render build script
+echo "========================================"
+echo "  STARTING TERMOS LT BUILD PROCESS"
+echo "========================================"
 
-echo "Starting TermOS LT build process..."
+# 1. Check Files
+echo "[1/3] Checking Files..."
+FILES=("index.html" "script.js" "style.css")
+for file in "${FILES[@]}"; do
+    if [ -f "$file" ]; then echo "   ✓ Found: $file"; else echo "   ✗ Missing: $file"; exit 1; fi
+done
 
-# Install Python dependencies
-pip install --upgrade pip
-pip install -r requirements.txt
+# 2. Prepare Distribution
+echo "[2/3] Creating Distribution Folder..."
+mkdir -p dist
+cp index.html dist/
+cp script.js dist/
+cp style.css dist/
 
-# Verify installations
-python -c "import paho.mqtt.client as mqtt; print('MQTT client OK')"
-python -c "import zhipuai; print('Zhipu AI OK')"
-
-echo "Build completed successfully!"
+# 3. Done
+echo "[3/3] Build Complete!"
+echo "To run: python3 -m http.server 8000"
+echo "Or open dist/index.html"
