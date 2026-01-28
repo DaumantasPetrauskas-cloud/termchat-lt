@@ -16,14 +16,14 @@ select {
 
 /* Prevent text selection during interaction */
 body {
-    background-color: #0066cc;
-    background: linear-gradient(135deg, #0066cc 0%, #003d7a 100%);
-    -webkit-touch-callout: none;
-    -webkit-user-select: none;
-    user-select: none;
-    -webkit-user-select: none;
-    -webkit-touch-callout: none;
-    -webkit-tap-highlight-color: transparent;
+    body {
+    background-color: #000;
+}
+.custom-scrollbar::-webkit-scrollbar { width: 5px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: #111; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: #4c1d95; border-radius: 3px; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+.animate-fade-in { animation: fadeIn 0.3s ease-out; }
 }
 
 /* Custom Scrollbar */
