@@ -1,8 +1,9 @@
 /* ================= CONFIG ================= */
 const CONFIG = {
-    version: "2.6.0",
+    // Try this public proxy first to fix CORS errors
+    proxyUrl: "https://corsproxy.io/?", 
     groqEndpoint: "https://api.groq.com/openai/v1/chat/completions",
-    model: "mixtral-8x7b-32768",
+    model: "mixtral-8x7b-32768", // Fastest model
     mqttBroker: "wss://test.mosquitto.org:8081/mqtt"
 };
 
@@ -11,19 +12,19 @@ const state = {
     username: "USER_" + Math.floor(Math.random() * 9999),
     xp: 0,
     level: 1,
-    mode: 'local', // local, chat, api, livingroom
-    apiKey: null,
-    currentZone: null, // For Living Room
+    mode: 'local', 
+    apiKey: localStorage.getItem('termos_api_key') || null, // Load saved key
+    currentZone: null,
     mqttClient: null
 };
 
 /* ================= ZONES DATA ================= */
 const ZONES = {
-    library: { name: "Knowledge Library", icon: "📚", welcome: "Welcome to the Library. What do you want to learn?" },
-    studio: { name: "Creative Studio", icon: "🎨", welcome: "Studio active. Let's create something." },
-    workshop: { name: "Tech Workshop", icon: "💻", welcome: "Workshop online. Ready to code." },
-    lounge: { name: "Entertainment Lounge", icon: "🎭", welcome: "Relax! Games and stories loaded." },
-    thinktank: { name: "Think Tank", icon: "🧠", welcome: "Brainstorming mode activated." }
+    library: { name: "Knowledge Library", icon: "📚", welcome: "Welcome to the Library." },
+    studio: { name: "Creative Studio", icon: "🎨", welcome: "Studio active." },
+    workshop: { name: "Tech Workshop", icon: "💻", welcome: "Workshop online." },
+    lounge: { name: "Entertainment Lounge", icon: "🎭", welcome: "Relax!" },
+    thinktank: { name: "Think Tank", icon: "🧠", welcome: "Brainstorming mode." }
 };
 
 /* ================= INITIALIZATION ================= */
@@ -35,7 +36,7 @@ window.onload = () => {
 
 /* ================= BOOT ================= */
 function runBootSequence() {
-    const logs = ["Loading Kernel...", "Mounting File System...", "Connecting to Matrix...", "System Ready."];
+    const logs = ["Loading Kernel...", "Checking API Status...", "Mounting File System...", "System Ready."];
     const term = document.getElementById('terminal-content');
     let i = 0;
     const interval = setInterval(() => {
@@ -56,18 +57,22 @@ function runBootSequence() {
 window.enterApp = (mode) => {
     if (mode === 'api') {
         document.getElementById('api-modal').classList.remove('hidden');
+        if (state.apiKey) document.getElementById('api-key-input').value = state.apiKey; // Pre-fill if exists
         return;
     }
     switchLayout(mode);
 };
 
 window.submitApiKey = () => {
-    const key = document.getElementById('api-key-input').value;
-    if (key) {
-        state.apiKey = key;
-        document.getElementById('api-modal').classList.add('hidden');
-        switchLayout('api');
+    const key = document.getElementById('api-key-input').value.trim();
+    if (!key.startsWith('gsk_')) {
+        alert("Invalid Key: Must start with 'gsk_'");
+        return;
     }
+    state.apiKey = key;
+    localStorage.setItem('termos_api_key', key); // Save key locally
+    document.getElementById('api-modal').classList.add('hidden');
+    switchLayout('api');
 };
 
 window.cancelApiKey = () => {
@@ -82,7 +87,7 @@ function switchLayout(mode) {
     const title = document.getElementById('room-title');
     if (mode === 'chat') { title.textContent = "GLOBAL CHAT"; connectMQTT(); addMsg("System", "Connected to Global Chat.", "system"); }
     else if (mode === 'api') { title.textContent = "GROQ AI"; addMsg("System", "API Connected. Use /ai [prompt]", "system"); }
-    else if (mode === 'livingroom') { title.textContent = "LIVING ROOM"; addMsg("System", "Welcome Home! Type 'enter library' to start.", "system"); }
+    else if (mode === 'livingroom') { title.textContent = "LIVING ROOM"; addMsg("System", "Welcome Home!", "system"); }
     else { title.textContent = "LOCAL MODE"; addMsg("System", "Offline mode active.", "system"); }
     
     setTimeout(() => document.getElementById('chatInput').focus(), 100);
@@ -107,8 +112,7 @@ window.handleSend = () => {
     } else if (state.mode === 'chat') {
         publishMQTT(text);
     } else {
-        // Local fallback
-        setTimeout(() => addMsg("TermAi", "I heard you: " + text, "ai"), 500);
+        setTimeout(() => addMsg("TermAi", "Local: " + text, "ai"), 500);
     }
 };
 
@@ -119,50 +123,102 @@ function handleCommand(raw) {
 
     if (cmd === '/ai') {
         if (!args) return addMsg("System", "Usage: /ai [prompt]", "system");
-        if (state.mode !== 'api') addMsg("System", "Switching to API mode for this request...", "system");
         talkToGroq(args);
-    } else if (cmd === '/help') {
-        addMsg("System", "Commands: /ai [prompt], /clear, /help", "system");
     } else if (cmd === '/clear') {
         document.getElementById('chat-container').innerHTML = '';
     }
 }
 
-/* ================= AI LOGIC ================= */
+/* ================= AI LOGIC (FIXED ERRORS) ================= */
 async function talkToGroq(prompt) {
-    const loadingId = addMsg("AI", "Thinking...", "loading");
+    if (!state.apiKey) {
+        addMsg("System", "No API Key found. Please restart and enter key.", "system");
+        return;
+    }
+
+    const loadingId = addMsg("AI", "Connecting to Groq...", "loading");
     
     try {
-        if (!state.apiKey) throw new Error("API Key missing.");
+        // Strategy 1: Try direct connection
+        let url = CONFIG.groqEndpoint;
+        let useProxy = false;
 
-        const res = await fetch(CONFIG.groqEndpoint, {
+        // NOTE: If direct connection fails, we will retry with the proxy below
+        
+        const response = await fetch(url, {
             method: "POST",
-            headers: { "Authorization": `Bearer ${state.apiKey}`, "Content-Type": "application/json" },
+            headers: { 
+                "Authorization": `Bearer ${state.apiKey}`, 
+                "Content-Type": "application/json" 
+            },
             body: JSON.stringify({
-                messages: [{ role: "system", content: "You are TermAi." }, { role: "user", content: prompt }],
+                messages: [{ role: "system", content: "You are a helpful assistant." }, { role: "user", content: prompt }],
                 model: CONFIG.model
             })
         });
 
-        if (!res.ok) throw new Error(`API Error: ${res.status}`);
-        const data = await res.json();
-        const reply = data.choices[0].message.content;
+        // Check for CORS or Network Errors
+        if (!response.ok) {
+            const errData = await response.json().catch(() => ({}));
+            
+            // If it's a CORS error (opaque) or network failure
+            if (response.type === 'opaque' || !response.statusText) {
+                throw new Error("CORS_BLOCK");
+            }
+            
+            throw new Error(errData.error?.message || `API Error ${response.status}`);
+        }
 
+        const data = await response.json();
+        const reply = data.choices[0].message.content;
+        
         document.getElementById(loadingId).remove();
         addMsg("Groq AI", reply, "ai");
         gainXP(25);
 
-    } catch (err) {
-        document.getElementById(loadingId)?.remove();
-        addMsg("System", "Error: " + err.message, "system");
+    } catch (error) {
+        // FALLBACK: Try using a Proxy if CORS blocked the first attempt
+        if (error.message === "CORS_BLOCK") {
+            document.getElementById(loadingId).textContent = "🔄 Retrying via Proxy...";
+            
+            try {
+                const proxyUrl = CONFIG.proxyUrl + encodeURIComponent(CONFIG.groqEndpoint);
+                const proxyResponse = await fetch(proxyUrl, {
+                    method: "POST",
+                    headers: { 
+                        "Authorization": `Bearer ${state.apiKey}`, 
+                        "Content-Type": "application/json" 
+                    },
+                    body: JSON.stringify({
+                        messages: [{ role: "system", content: "You are a helpful assistant." }, { role: "user", content: prompt }],
+                        model: CONFIG.model
+                    })
+                });
+
+                if (!proxyResponse.ok) throw new Error("Proxy Failed");
+                const data = await proxyResponse.json();
+                const reply = data.choices[0].message.content;
+                
+                document.getElementById(loadingId).remove();
+                addMsg("Groq AI (Proxy)", reply, "ai");
+                gainXP(25);
+
+            } catch (proxyError) {
+                document.getElementById(loadingId).remove();
+                addMsg("System", "Error: Blocked by Browser CORS. Try a different browser or disable web security for testing.", "system");
+                console.error(proxyError);
+            }
+        } else {
+            // Standard API Errors (Invalid Key, Rate Limit)
+            document.getElementById(loadingId).remove();
+            addMsg("System", `API Error: ${error.message}`, "system");
+        }
     }
 }
 
 /* ================= LIVING ROOM LOGIC ================= */
 function handleLivingRoom(text) {
     const lower = text.toLowerCase();
-    
-    // Navigation
     for (const key in ZONES) {
         if (lower.includes(key) || lower.includes(ZONES[key].name.toLowerCase())) {
             state.currentZone = key;
@@ -172,21 +228,15 @@ function handleLivingRoom(text) {
             return;
         }
     }
-
-    // Zone Interaction
-    if (!state.currentZone) {
-        addMsg("System", "Enter a zone first (e.g., 'enter library').", "system");
-        return;
-    }
-
-    // Mock Zone Responses
+    if (!state.currentZone) return addMsg("System", "Enter a zone first.", "system");
+    
     setTimeout(() => {
-        let response = "I'm listening. Tell me more.";
-        if (state.currentZone === 'library') response = "I have archived that data. Need a summary?";
-        if (state.currentZone === 'studio') response = "Generating creative concept... Done.";
-        if (state.currentZone === 'workshop') response = "Code snippet generated successfully.";
-        if (state.currentZone === 'lounge') response = "That's funny! Tell me another.";
-        if (state.currentZone === 'thinktank') response = "Brainstorming complete. Here is a solution.";
+        let response = "I'm listening.";
+        if (state.currentZone === 'library') response = "Data archived.";
+        if (state.currentZone === 'studio') response = "Creative concept generated.";
+        if (state.currentZone === 'workshop') response = "Code compiled.";
+        if (state.currentZone === 'lounge') response = "Haha, good one!";
+        if (state.currentZone === 'thinktank') response = "Solution calculated.";
         addMsg(ZONES[state.currentZone].name, response, "ai");
     }, 800);
 }
@@ -197,13 +247,12 @@ function addMsg(user, text, type) {
     const div = document.createElement('div');
     div.className = "flex flex-col gap-1 animate-fade-in";
     
-    // Loading handling
     if (type === 'loading') {
-        div.id = text; // Use text as ID hack for removal
-        div.innerHTML = `<span class="text-purple-400 text-xs animate-pulse">🤖 AI is thinking...</span>`;
+        div.id = "loading-" + Date.now();
+        div.innerHTML = `<span class="text-orange-400 text-xs animate-pulse">🤖 ${text}</span>`;
         container.appendChild(div);
         container.scrollTop = container.scrollHeight;
-        return text; // Return ID
+        return div.id;
     }
 
     if (type === 'system') {
@@ -266,9 +315,4 @@ function initMatrix() {
         ctx.fillStyle="#0F0";
         ctx.font="14px monospace";
         for(let i=0;i<drops.length;i++){
-            ctx.fillText(chars[Math.floor(Math.random()*chars.length)], i*14, drops[i]*14);
-            if(drops[i]*14>c.height && Math.random()>0.975) drops[i]=0;
-            drops[i]++;
-        }
-    }, 33);
-}
+            ctx.fillText(chars[Math.floor(Math.random()*chars.length)], i*14, drops[i
