@@ -2,111 +2,614 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TERMOS OS</title>
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- MQTT Library -->
-    <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>MultiuniversOS: Masterpiece</title>
     
-    <style>
-        body { background-color: #050505; color: #e0e0e0; font-family: 'Courier New', Courier, monospace; overflow: hidden; }
-        .animate-fade-in { animation: fadeIn 0.3s ease-out forwards; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
-        
-        /* Scrollbar styling */
-        #chat-container::-webkit-scrollbar { width: 6px; }
-        #chat-container::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
-        #chat-container::-webkit-scrollbar-track { background: #111; }
-        
-        .crt-overlay {
-            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
-            background-size: 100% 2px, 3px 100%;
-            pointer-events: none;
+    <!-- TAILWIND CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        neon: {
+                            green: '#0f0',
+                            cyan: '#0ff',
+                            purple: '#d0f',
+                            red: '#f00',
+                            yellow: '#ff0'
+                        },
+                        glass: 'rgba(10, 10, 10, 0.85)'
+                    },
+                    fontFamily: {
+                        mono: ['"Courier New"', 'monospace'],
+                    }
+                }
+            }
         }
+    </script>
+
+    <style>
+        body { background-color: #000; color: #eee; overflow: hidden; user-select: none; }
+        
+        /* CRT EFFECTS */
+        .crt::before {
+            content: " "; display: block; position: absolute; top: 0; left: 0; bottom: 0; right: 0;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+            z-index: 50; background-size: 100% 2px, 3px 100%; pointer-events: none;
+        }
+        
+        /* DESKTOP */
+        #desktop { width: 100vw; height: calc(100vh - 40px); position: relative; z-index: 10; }
+        
+        /* WINDOWS */
+        .window {
+            position: absolute; background: #0a0a0a; border: 1px solid #333;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.8); display: flex; flex-direction: column;
+            transition: transform 0.1s;
+        }
+        .window.active { border-color: #0f0; box-shadow: 0 0 15px rgba(0, 255, 0, 0.2); z-index: 20; }
+        .window-header { background: #111; padding: 5px 10px; cursor: move; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #333; }
+        .window-title { font-size: 12px; font-weight: bold; color: #888; }
+        .window.active .window-title { color: #0f0; }
+        .window-content { flex: 1; overflow: auto; position: relative; padding: 10px; font-family: 'Courier New', monospace; font-size: 14px; }
+        
+        /* TERMINAL SPECIFIC */
+        .terminal-input { background: transparent; border: none; color: #0f0; width: 100%; outline: none; font-family: inherit; margin-top: 5px; }
+        .cmd-output { white-space: pre-wrap; margin-bottom: 5px; }
+        .cmd-line { display: flex; }
+        .prompt { color: #0f0; margin-right: 8px; }
+
+        /* TASKBAR */
+        #taskbar {
+            position: fixed; bottom: 0; width: 100%; height: 40px; background: #050505;
+            border-top: 1px solid #333; display: flex; align-items: center; padding: 0 10px;
+            z-index: 100; box-shadow: 0 -2px 10px rgba(0,0,0,0.5);
+        }
+        .taskbar-item {
+            background: #111; border: 1px solid #333; padding: 5px 15px; margin-right: 5px;
+            font-size: 12px; cursor: pointer; transition: all 0.2s; color: #888;
+            display: flex; align-items: center; gap: 5px;
+        }
+        .taskbar-item:hover { background: #222; }
+        .taskbar-item.active { background: #0f0; color: #000; font-weight: bold; }
+
+        /* BOOT SCREEN */
+        #boot-screen {
+            position: fixed; inset: 0; background: #000; z-index: 999; display: flex;
+            flex-direction: column; align-items: center; justify-content: center; font-family: monospace;
+        }
+
+        /* ICONS */
+        .icon-grid {
+            display: grid; grid-template-columns: repeat(auto-fill, 80px); gap: 15px; padding: 20px;
+        }
+        .desktop-icon {
+            display: flex; flex-direction: column; align-items: center; cursor: pointer;
+            color: #ccc; transition: color 0.2s; text-align: center;
+        }
+        .desktop-icon:hover { color: #0f0; text-shadow: 0 0 5px #0f0; }
+        .icon-box {
+            width: 48px; height: 48px; background: rgba(255,255,255,0.1); margin-bottom: 5px;
+            border: 1px solid #333; display: flex; align-items: center; justify-content: center; font-size: 24px;
+        }
+
+        /* SCROLLBAR */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #000; }
+        ::-webkit-scrollbar-thumb { background: #333; }
+        ::-webkit-scrollbar-thumb:hover { background: #0f0; }
     </style>
 </head>
-<body class="h-screen w-screen flex flex-col items-center justify-center relative">
+<body class="crt">
 
-    <!-- Matrix Background -->
-    <canvas id="matrix-canvas" class="absolute top-0 left-0 z-0 opacity-20"></canvas>
-    
-    <!-- CRT Effect Overlay -->
-    <div class="absolute top-0 left-0 w-full h-full z-50 crt-overlay"></div>
+    <!-- BOOT SCREEN -->
+    <div id="boot-screen">
+        <div class="text-neon-green text-2xl mb-4 animate-pulse">MULTIVERSE OS <span class="text-xs text-gray-500">v3.0 MASTERPIECE</span></div>
+        <div id="boot-log" class="text-neon-cyan text-sm h-32 overflow-hidden w-80 text-left"></div>
+        <button onclick="bootSystem()" class="mt-6 border border-neon-green text-neon-green px-4 py-2 hover:bg-neon-green hover:text-black transition-all">INITIALIZE KERNEL</button>
+    </div>
 
-    <!-- Boot Screen -->
-    <div id="terminal-boot" class="z-10 w-full max-w-lg p-6 bg-black/80 border border-green-900/50 rounded-lg shadow-[0_0_15px_rgba(0,255,0,0.2)]">
-        <div class="flex justify-between items-center border-b border-green-900/30 pb-2 mb-4">
-            <span class="text-green-500 font-bold text-sm">TERMOS v2.4</span>
-            <span id="boot-status" class="text-green-700 text-xs animate-pulse">INITIALIZING...</span>
+    <!-- DESKTOP AREA -->
+    <div id="desktop">
+        <!-- Desktop Icons -->
+        <div class="icon-grid" id="desktop-icons">
+            <div class="desktop-icon" onclick="sys.openWindow('terminal')">
+                <div class="icon-box">>_</div>
+                <span>Terminal</span>
+            </div>
+            <div class="desktop-icon" onclick="sys.openWindow('monitor')">
+                <div class="icon-box">📊</div>
+                <span>Sys. Monitor</span>
+            </div>
+            <div class="desktop-icon" onclick="sys.openWindow('devtools')">
+                <div class="icon-box">🔧</div>
+                <span>DevTools</span>
+            </div>
+            <div class="desktop-icon" onclick="sys.openWindow('store')">
+                <div class="icon-box">📦</div>
+                <span>App Store</span>
+            </div>
+            <div class="desktop-icon" onclick="sys.openWindow('remote')">
+                <div class="icon-box">🌐</div>
+                <span>Remote Shell</span>
+            </div>
         </div>
-        <div id="terminal-content" class="text-xs font-mono text-green-400/80 h-64 overflow-y-auto mb-4 flex flex-col gap-1"></div>
         
-        <div class="grid grid-cols-2 gap-3 mt-4">
-            <button onclick="enterApp('api')" class="col-span-2 bg-purple-900/20 border border-purple-500/50 text-purple-300 hover:bg-purple-900/40 py-3 text-sm font-bold transition-all shadow-[0_0_10px_rgba(168,85,247,0.1)]">
-                START AI ASSISTANT (GROQ)
-            </button>
-            <button onclick="enterApp('livingroom')" class="bg-blue-900/20 border border-blue-500/50 text-blue-300 hover:bg-blue-900/40 py-2 text-xs transition-all">
-                LIVING ROOM
-            </button>
-            <button onclick="enterApp('chat')" class="bg-green-900/20 border border-green-500/50 text-green-300 hover:bg-green-900/40 py-2 text-xs transition-all">
-                GLOBAL CHAT
-            </button>
-            <button onclick="enterApp('local')" class="col-span-2 bg-gray-800/40 border border-gray-600 text-gray-400 hover:bg-gray-800/60 py-2 text-xs transition-all">
-                LOCAL OFFLINE MODE
-            </button>
-        </div>
+        <!-- Windows are injected here via JS -->
     </div>
 
-    <!-- API Key Modal (Hidden by default) -->
-    <div id="api-modal" class="hidden fixed inset-0 z-50 bg-black/90 flex items-center justify-center backdrop-blur-sm">
-        <div class="bg-gray-900 border border-purple-500/50 p-6 rounded-lg w-11/12 max-w-md shadow-[0_0_30px_rgba(168,85,247,0.2)]">
-            <h3 class="text-purple-400 font-bold mb-2">ENTER API KEY</h3>
-            <p class="text-xs text-gray-500 mb-4">Key is stored locally in your browser.</p>
-            <input type="password" id="api-key-input" placeholder="gsk_..." class="w-full bg-black border border-gray-700 text-purple-300 p-2 text-sm focus:outline-none focus:border-purple-500 mb-4 font-mono">
-            <div class="flex justify-end gap-2">
-                <button onclick="cancelApiKey()" class="px-4 py-2 text-xs text-gray-400 hover:text-white">Cancel</button>
-                <button onclick="submitApiKey()" class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold rounded">CONNECT</button>
-            </div>
-        </div>
+    <!-- TASKBAR -->
+    <div id="taskbar">
+        <button class="taskbar-item" onclick="sys.toggleStartMenu()">⊞ START</button>
+        <div id="active-tasks" class="flex-1 flex"></div>
+        <div class="text-neon-cyan text-xs mr-2" id="clock">00:00</div>
+        <div class="text-neon-green text-xs mr-2" id="net-status">ONLINE</div>
     </div>
 
-    <!-- Main Layout (Hidden by default) -->
-    <div id="main-layout" class="hidden z-10 w-full h-full max-w-3xl flex flex-col bg-black/90 md:border-x border-gray-800">
-        <!-- Header -->
-        <div class="h-14 border-b border-gray-800 flex items-center justify-between px-4 bg-gray-900/50 backdrop-blur">
-            <div class="flex items-center gap-3">
-                <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                <h2 id="room-title" class="font-bold text-sm tracking-widest text-white">TERMINAL</h2>
-            </div>
-            <div class="flex items-center gap-4 text-[10px] font-mono">
-                <div class="flex flex-col items-end w-24">
-                    <div class="flex justify-between w-full text-gray-400">
-                        <span id="lvl-text">LVL. 1</span>
-                        <span id="xp-text">XP: 0</span>
+    <!-- AUDIO ELEMENTS -->
+    <script>
+        // --- CORE: AUDIO SYSTEM ---
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        
+        const Sounds = {
+            play: (type) => {
+                if(audioCtx.state === 'suspended') audioCtx.resume();
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                if(type === 'startup') {
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(110, audioCtx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.5);
+                    gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 1.0);
+                    osc.start(); osc.stop(audioCtx.currentTime + 1.0);
+                } else if (type === 'click') {
+                    osc.type = 'square';
+                    osc.frequency.setValueAtTime(800, audioCtx.currentTime);
+                    gain.gain.setValueAtTime(0.02, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.05);
+                    osc.start(); osc.stop(audioCtx.currentTime + 0.05);
+                } else if (type === 'error') {
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(150, audioCtx.currentTime);
+                    gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                    gain.gain.linearRampToValueAtTime(0.001, audioCtx.currentTime + 0.3);
+                    osc.start(); osc.stop(audioCtx.currentTime + 0.3);
+                } else if (type === 'alert') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(1200, audioCtx.currentTime);
+                    gain.gain.setValueAtTime(0.05, audioCtx.currentTime);
+                    osc.start(); osc.stop(audioCtx.currentTime + 0.1);
+                }
+            }
+        };
+
+        // --- CORE: FILE SYSTEM (Mocked in LocalStorage) ---
+        const FS = {
+            data: JSON.parse(localStorage.getItem('multiverse_fs') || '{"root": {"type": "dir", "content": {"readme.txt": {"type": "file", "content": "Welcome to MultiuniversOS."}}}}'),
+            save: () => localStorage.setItem('multiverse_fs', JSON.stringify(FS.data)),
+            resolvePath: (path) => { /* Simplified path resolution */ return FS.data.root; },
+            ls: (dir) => {
+                return Object.keys(dir.content).map(k => `${dir.content[k].type === 'dir' ? '+' : '-'} ${k}`).join('\n');
+            },
+            mkdir: (name, parent) => {
+                parent.content[name] = { type: 'dir', content: {} };
+                FS.save();
+            },
+            touch: (name, parent) => {
+                parent.content[name] = { type: 'file', content: '' };
+                FS.save();
+            },
+            write: (name, content, parent) => {
+                if(parent.content[name]) parent.content[name].content = content;
+                FS.save();
+            },
+            read: (name, parent) => {
+                return parent.content[name] ? parent.content[name].content : 'File not found';
+            },
+            rm: (name, parent) => {
+                delete parent.content[name];
+                FS.save();
+            }
+        };
+
+        // --- CORE: WINDOW MANAGER ---
+        class WindowSystem {
+            constructor() {
+                this.windows = {};
+                this.zIndex = 100;
+                this.activeWindow = null;
+                this.desktop = document.getElementById('desktop');
+                this.taskbar = document.getElementById('active-tasks');
+            }
+
+            openWindow(id, title, contentHTML, width = 400, height = 300) {
+                Sounds.play('click');
+                if (this.windows[id]) {
+                    this.focusWindow(id);
+                    return;
+                }
+
+                const win = document.createElement('div');
+                win.className = 'window active';
+                win.id = `win-${id}`;
+                win.style.width = width + 'px';
+                win.style.height = height + 'px';
+                win.style.left = (50 + Math.random() * 50) + 'px';
+                win.style.top = (50 + Math.random() * 50) + 'px';
+                win.style.zIndex = ++this.zIndex;
+
+                win.innerHTML = `
+                    <div class="window-header" onmousedown="sys.startDrag(event, '${id}')">
+                        <span class="window-title">${title}</span>
+                        <div>
+                            <button onclick="sys.minimizeWindow('${id}')" class="text-gray-500 hover:text-white mx-1">_</button>
+                            <button onclick="sys.closeWindow('${id}')" class="text-red-500 hover:text-red-400 font-bold mx-1">×</button>
+                        </div>
                     </div>
-                    <div class="w-full h-1 bg-gray-800 mt-1 rounded-full overflow-hidden">
-                        <div id="xp-bar" class="h-full bg-purple-500 w-0 transition-all duration-500"></div>
+                    <div class="window-content">${contentHTML}</div>
+                `;
+
+                this.desktop.appendChild(win);
+                this.windows[id] = win;
+                this.addTaskbarItem(id, title);
+                this.focusWindow(id);
+            }
+
+            focusWindow(id) {
+                if (!this.windows[id]) return;
+                Object.values(this.windows).forEach(w => w.classList.remove('active'));
+                this.windows[id].classList.add('active');
+                this.windows[id].style.zIndex = ++this.zIndex;
+                this.windows[id].style.display = 'flex';
+                this.updateTaskbar(id, true);
+            }
+
+            closeWindow(id) {
+                if (this.windows[id]) {
+                    this.windows[id].remove();
+                    delete this.windows[id];
+                    document.getElementById(`task-${id}`)?.remove();
+                }
+            }
+
+            minimizeWindow(id) {
+                if (this.windows[id]) {
+                    this.windows[id].style.display = 'none';
+                    this.updateTaskbar(id, false);
+                }
+            }
+
+            addTaskbarItem(id, title) {
+                const item = document.createElement('div');
+                item.className = 'taskbar-item active';
+                item.id = `task-${id}`;
+                item.innerHTML = `<span>${title}</span>`;
+                item.onclick = () => {
+                    if (this.windows[id].style.display === 'none') this.focusWindow(id);
+                    else if (this.activeWindow === id) this.minimizeWindow(id);
+                    else this.focusWindow(id);
+                };
+                this.taskbar.appendChild(item);
+            }
+
+            updateTaskbar(id, isActive) {
+                const item = document.getElementById(`task-${id}`);
+                if (item) {
+                    if (isActive) item.classList.add('active');
+                    else item.classList.remove('active');
+                }
+            }
+
+            startDrag(e, id) {
+                const win = this.windows[id];
+                let shiftX = e.clientX - win.getBoundingClientRect().left;
+                let shiftY = e.clientY - win.getBoundingClientRect().top;
+
+                function moveAt(pageX, pageY) {
+                    win.style.left = pageX - shiftX + 'px';
+                    win.style.top = pageY - shiftY + 'px';
+                }
+
+                function onMouseMove(event) { moveAt(event.pageX, event.pageY); }
+
+                document.addEventListener('mousemove', onMouseMove);
+
+                document.onmouseup = function() {
+                    document.removeEventListener('mousemove', onMouseMove);
+                    document.onmouseup = null;
+                };
+            }
+            
+            // --- FEATURE: BOOT SEQUENCE ---
+            boot() {
+                const log = document.getElementById('boot-log');
+                const lines = [
+                    "Initializing Kernel...",
+                    "Loading Filesystem (IndexedDB)...",
+                    "Mounting Virtual Drive...",
+                    "Starting Network Daemon...",
+                    "Checking Immune System...",
+                    "OK: Self-Healing Protocol Active.",
+                    "OK: Evolution Engine Ready.",
+                    "SYSTEM ONLINE."
+                ];
+                let i = 0;
+                const interval = setInterval(() => {
+                    if (i >= lines.length) {
+                        clearInterval(interval);
+                        document.getElementById('boot-screen').style.display = 'none';
+                        this.openWindow('terminal', 'TERMINAL', this.getTerminalHTML(), 600, 400);
+                        this.openWindow('monitor', 'SYSTEM MONITOR', this.getMonitorHTML(), 300, 200);
+                        Sounds.play('startup');
+                        return;
+                    }
+                    log.innerHTML += `<div>> ${lines[i]}</div>`;
+                    log.scrollTop = log.scrollHeight;
+                    i++;
+                }, 500);
+            }
+
+            // --- HTML GENERATORS ---
+            getTerminalHTML() {
+                return `
+                    <div id="term-output" class="cmd-output text-neon-green"></div>
+                    <div class="cmd-line">
+                        <span class="prompt">root@multiverse:~$</span>
+                        <input type="text" id="term-input" class="terminal-input" autocomplete="off" onkeydown="sys.handleCommand(event, this)">
                     </div>
-                </div>
-                <span id="user-display" class="text-gray-500">@USER</span>
-            </div>
-        </div>
+                `;
+            }
 
-        <!-- Chat Area -->
-        <div id="chat-container" class="flex-1 overflow-y-auto p-4 font-mono text-sm space-y-3 relative">
-            <!-- Messages inject here -->
-        </div>
+            getMonitorHTML() {
+                return `
+                    <div class="space-y-2 text-xs">
+                        <div><span class="text-gray-400">CPU:</span> <div class="w-full bg-gray-800 h-2"><div id="cpu-bar" class="bg-neon-red h-2" style="width:12%"></div></div></div>
+                        <div><span class="text-gray-400">MEM:</span> <div class="w-full bg-gray-800 h-2"><div id="mem-bar" class="bg-neon-purple h-2" style="width:45%"></div></div></div>
+                        <div class="flex justify-between"><span>STATUS:</span> <span class="text-neon-green animate-pulse">ORGANIC</span></div>
+                        <div class="flex justify-between"><span>NET:</span> <span class="text-neon-cyan">SECURE (TLS 1.3)</span></div>
+                    </div>
+                `;
+            }
 
-        <!-- Input Area -->
-        <div class="p-4 border-t border-gray-800 bg-gray-900/80">
-            <div class="flex gap-2">
-                <span class="text-purple-500 font-bold select-none">➜</span>
-                <input type="text" id="chatInput" class="flex-1 bg-transparent border-none text-white focus:ring-0 font-mono text-sm placeholder-gray-600" placeholder="Type a command..." autocomplete="off">
-            </div>
-        </div>
-    </div>
+            getDevToolsHTML() {
+                return `
+                    <div class="flex flex-col h-full">
+                        <div class="flex border-b border-gray-700 mb-2">
+                            <button class="px-3 py-1 bg-gray-800 text-white text-xs" onclick="document.getElementById('tab-regex').style.display='block';document.getElementById('tab-json').style.display='none';">REGEX</button>
+                            <button class="px-3 py-1 text-gray-400 text-xs hover:text-white" onclick="document.getElementById('tab-regex').style.display='none';document.getElementById('tab-json').style.display='block';">JSON</button>
+                        </div>
+                        <div id="tab-regex">
+                            <input id="regex-pattern" placeholder="Pattern (e.g. \\d+)" class="w-full bg-black border border-gray-700 p-1 text-neon-cyan text-xs mb-2">
+                            <input id="regex-text" placeholder="Test String" class="w-full bg-black border border-gray-700 p-1 text-white text-xs" oninput="sys.testRegex()">
+                            <div id="regex-result" class="text-neon-green text-xs mt-2"></div>
+                        </div>
+                        <div id="tab-json" style="display:none;">
+                            <textarea id="json-input" class="w-full h-32 bg-black border border-gray-700 p-1 text-white text-xs mb-2" placeholder='{"ugly":"json"}'></textarea>
+                            <button onclick="sys.formatJSON()" class="w-full bg-neon-cyan text-black text-xs font-bold">FORMAT</button>
+                            <pre id="json-output" class="text-neon-green text-xs mt-2 overflow-auto h-20"></pre>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            getStoreHTML() {
+                return `
+                    <div class="grid grid-cols-2 gap-2 text-center">
+                        <div class="border border-gray-700 p-2 cursor-pointer hover:bg-gray-800" onclick="alert('Installing P2P Module...')">
+                            <div class="text-2xl mb-1">🌐</div>
+                            <div class="text-xs">P2P Tunnel</div>
+                        </div>
+                        <div class="border border-gray-700 p-2 cursor-pointer hover:bg-gray-800" onclick="alert('Installing Matrix Rain...')">
+                            <div class="text-2xl mb-1">🟢</div>
+                            <div class="text-xs">Matrix Rain</div>
+                        </div>
+                        <div class="border border-gray-700 p-2 cursor-pointer hover:bg-gray-800" onclick="alert('Installing Theme...')">
+                            <div class="text-2xl mb-1">🎨</div>
+                            <div class="text-xs">Cyberpunk Theme</div>
+                        </div>
+                    </div>
+                `;
+            }
 
-    <script src="script.js"></script>
+            getRemoteHTML() {
+                return `
+                    <div class="text-xs">
+                        <div class="mb-2 text-gray-400">REMOTE SHELL: RENDER_DEPLOY_01</div>
+                        <div id="remote-out" class="text-white mb-2">Connected to root@192.168.1.55</div>
+                        <input type="text" class="w-full bg-black border border-gray-700 p-1 text-white font-mono" placeholder="$ " onkeydown="if(event.key==='Enter'){ this.value=''; document.getElementById('remote-out').innerHTML+= '<div>> '+this.value+'</div>';}">
+                    </div>
+                `;
+            }
+
+            // --- TERMINAL LOGIC ---
+            handleCommand(e, input) {
+                if (e.key === 'Enter') {
+                    const val = input.value.trim();
+                    const out = document.getElementById('term-output');
+                    out.innerHTML += `<div><span class="prompt">root@multiverse:~$</span> ${escapeHtml(val)}</div>`;
+                    
+                    const parts = val.split(' ');
+                    const cmd = parts[0].toLowerCase();
+                    const args = parts.slice(1);
+
+                    let response = '';
+
+                    // Commands
+                    try {
+                        const cwd = FS.data.root; // simplified to root for demo
+
+                        switch(cmd) {
+                            case 'help':
+                                response = "Available commands: help, ls, mkdir, touch, cat, nano, rm, clear, mutate, scan";
+                                break;
+                            case 'ls':
+                                response = FS.ls(cwd);
+                                break;
+                            case 'mkdir':
+                                if(args[0]) { FS.mkdir(args[0], cwd); response = `Directory '${args[0]}' created.`; }
+                                else response = "Usage: mkdir [name]";
+                                break;
+                            case 'touch':
+                                if(args[0]) { FS.touch(args[0], cwd); response = `File '${args[0]}' created.`; }
+                                else response = "Usage: touch [name]";
+                                break;
+                            case 'cat':
+                                if(args[0]) response = FS.read(args[0], cwd);
+                                else response = "Usage: cat [filename]";
+                                break;
+                            case 'nano':
+                                if(args[0]) {
+                                    response = `[EDITOR] Opening ${args[0]}... (Mock editor)`;
+                                    setTimeout(() => alert(`Editing ${args[0]}\n(Currently read-only in web version)`), 100);
+                                } else response = "Usage: nano [filename]";
+                                break;
+                            case 'rm':
+                                if(args[0]) { FS.rm(args[0], cwd); response = `Removed '${args[0]}'.`; }
+                                else response = "Usage: rm [filename]";
+                                break;
+                            case 'clear':
+                                out.innerHTML = ''; response = null;
+                                break;
+                            case 'scan':
+                                response = "Scanning LAN...\n[1] 192.168.1.5 - USER_DAUMANTAS\n[2] 192.168.1.8 - PRINTER_HP\nScan Complete.";
+                                break;
+                            case 'mutate':
+                                // THE EVOLUTION FEATURE
+                                response = `> INITIATING EVOLUTION PROTOCOL...\n> ANALYZING REQUEST: "${args.join(' ')}"\n> CONTACTING ARCHITECT (GROQ)...`;
+                                this.simulateEvolution(args.join(' '));
+                                break;
+                            default:
+                                response = `Command not found: ${cmd}`;
+                        }
+                    } catch(err) {
+                        response = `Error: ${err.message}`;
+                    }
+
+                    if (response) out.innerHTML += `<div class="text-white mb-2">${response.replace(/\n/g, '<br>')}</div>`;
+                    input.value = '';
+                    input.scrollIntoView();
+                }
+            }
+
+            simulateEvolution(request) {
+                const out = document.getElementById('term-output');
+                // Visual feedback loop
+                let steps = ["Patching Kernel...", "Rewriting CSS...", "Optimizing Neural Net...", "Deploying Mutation..."];
+                let i = 0;
+                const interval = setInterval(() => {
+                    out.innerHTML += `<div class="text-neon-purple">> ${steps[i]}</div>`;
+                    out.scrollTop = out.scrollHeight;
+                    i++;
+                    if(i >= steps.length) {
+                        clearInterval(interval);
+                        out.innerHTML += `<div class="text-neon-green font-bold">>> EVOLUTION COMPLETE. SYSTEM UPGRADED.</div>`;
+                        Sounds.play('startup'); // Feedback sound
+                        
+                        // Visual mutation: Change background color temporarily
+                        document.body.style.backgroundColor = '#0f0030';
+                        setTimeout(() => document.body.style.backgroundColor = '#000', 500);
+                    }
+                }, 800);
+            }
+
+            // --- DEVTOOLS LOGIC ---
+            testRegex() {
+                const pattern = document.getElementById('regex-pattern').value;
+                const text = document.getElementById('regex-text').value;
+                const resDiv = document.getElementById('regex-result');
+                try {
+                    const regex = new RegExp(pattern);
+                    const matches = text.match(regex);
+                    resDiv.innerHTML = matches ? `<span class="text-neon-green">Match: ${matches.join(', ')}</span>` : 'No Match';
+                } catch(e) {
+                    resDiv.innerHTML = `<span class="text-neon-red">Invalid Regex</span>`;
+                }
+            }
+
+            formatJSON() {
+                try {
+                    const raw = document.getElementById('json-input').value;
+                    const obj = JSON.parse(raw);
+                    document.getElementById('json-output').innerHTML = JSON.stringify(obj, null, 2);
+                } catch(e) {
+                    document.getElementById('json-output').innerHTML = "Invalid JSON";
+                }
+            }
+        }
+
+        function escapeHtml(text) {
+            if (!text) return text;
+            return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        }
+
+        // --- INITIALIZATION ---
+        const sys = new WindowSystem();
+
+        function bootSystem() {
+            Sounds.play('click');
+            sys.boot();
+        }
+
+        // Clock
+        setInterval(() => {
+            document.getElementById('clock').innerText = new Date().toLocaleTimeString();
+        }, 1000);
+
+        // Mock System Monitor Loop
+        setInterval(() => {
+            if(document.getElementById('cpu-bar')) {
+                document.getElementById('cpu-bar').style.width = Math.floor(Math.random() * 30 + 10) + '%';
+                document.getElementById('mem-bar').style.width = Math.floor(Math.random() * 20 + 40) + '%';
+            }
+        }, 2000);
+
+        // --- VOICE COMMAND (Web Speech API) ---
+        if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            const recognition = new SpeechRecognition();
+            recognition.continuous = false;
+            recognition.lang = 'en-US';
+
+            // Add Mic Button
+            const micBtn = document.createElement('button');
+            micBtn.className = 'taskbar-item';
+            micBtn.innerHTML = '🎙️';
+            micBtn.onclick = () => { Sounds.play('click'); recognition.start(); };
+            document.getElementById('taskbar').insertBefore(micBtn, document.getElementById('clock'));
+
+            recognition.onresult = (event) => {
+                const command = event.results[0][0].transcript.toLowerCase();
+                alert(`Voice Command: "${command}"`);
+                
+                if(command.includes('terminal')) sys.openWindow('terminal', 'TERMINAL', sys.getTerminalHTML());
+                if(command.includes('store')) sys.openWindow('store', 'APP STORE', sys.getStoreHTML());
+                if(command.includes('monitor')) sys.openWindow('monitor', 'SYSTEM MONITOR', sys.getMonitorHTML());
+                if(command.includes('scan')) sys.simulateEvolution("Voice Initiated Scan");
+            };
+        }
+
+        // --- IMMUNE SYSTEM (Global Error Handler) ---
+        window.onerror = function(message, source, lineno, colno, error) {
+            console.error("CRITICAL ERROR DETECTED:", error);
+            // Try to log to terminal if it exists
+            const termOut = document.getElementById('term-output');
+            if(termOut) {
+                termOut.innerHTML += `<div class="text-neon-red">[IMMUNE SYS] Caught exception in ${source}:${lineno} - ${message}</div>`;
+                termOut.scrollTop = termOut.scrollHeight;
+            }
+            Sounds.play('error');
+            // Attempt self-healing (Reload)
+            setTimeout(() => {
+                if(confirm("System instability detected. Initiate Reboot?")) location.reload();
+            }, 2000);
+        };
+
+    </script>
 </body>
 </html>
