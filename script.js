@@ -1,12 +1,16 @@
 /* ================= CONFIG ================= */
 const CONFIG = {
-    // Using corsproxy.io to bypass browser security restrictions
-    proxyUrl: "https://corsproxy.io/?", 
+    // List of public proxies to cycle through if CORS is blocked
+    corsProxies: [
+        "https://corsproxy.io/?",
+        "https://api.allorigins.win/raw?url=",
+        "https://cors-anywhere.herokuapp.com/" // Note: This one might request a temporary demo access, but is a good fallback
+    ],
+    
     groqEndpoint: "https://api.groq.com/openai/v1/chat/completions",
-    model: "mixtral-8x7b-32768", // Fast, efficient model
+    model: "llama3-8b-8192", // Switched to Llama3 (often more stable/faster on free tier than Mixtral)
     mqttBroker: "wss://test.mosquitto.org:8081/mqtt",
-    // UPDATED API KEY
-    apiKey: "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" 
+    debug: true // Set to true to see errors in F12 console
 };
 
 /* ================= STATE ================= */
@@ -15,9 +19,10 @@ const state = {
     xp: 0,
     level: 1,
     mode: 'local', 
-    apiKey: localStorage.getItem('termos_api_key') || CONFIG.apiKey, // Use config key first, then local storage
+    apiKey: localStorage.getItem('termos_api_key') || null, 
     currentZone: null,
-    mqttClient: null
+    mqttClient: null,
+    currentProxyIndex: 0 // Track which proxy we are using
 };
 
 /* ================= ZONES DATA ================= */
@@ -63,7 +68,6 @@ function runBootSequence() {
 
 /* ================= NAVIGATION ================= */
 window.enterApp = (mode) => {
-    // If API mode, check if we need to show the modal (only if no key exists)
     if (mode === 'api' && !state.apiKey) {
         document.getElementById('api-modal').classList.remove('hidden');
         return;
@@ -78,7 +82,7 @@ window.submitApiKey = () => {
         return;
     }
     state.apiKey = key;
-    localStorage.setItem('termos_api_key', key); // Save key locally
+    localStorage.setItem('termos_api_key', key);
     document.getElementById('api-modal').classList.add('hidden');
     switchLayout('api');
 };
@@ -151,99 +155,81 @@ function handleCommand(raw) {
     }
 }
 
-/* ================= AI LOGIC (FIXED) ================= */
+/* ================= AI LOGIC (FIXED WITH PROXY ROTATION) ================= */
 async function talkToGroq(prompt) {
-    // Ensure we have a key
-    const activeKey = state.apiKey || CONFIG.apiKey;
-    if (!activeKey) {
-        addMsg("System", "No API Key found.", "system");
+    if (!state.apiKey) {
+        addMsg("System", "No API Key found. Click 'Restart' to enter a key.", "system");
         return;
     }
 
-    const loadingId = addMsg("Groq", "Thinking...", "loading");
+    const loadingId = addMsg("AI", "Connecting via Proxy...", "loading");
     
-    try {
-        // Strategy 1: Try Direct Connection first (Faster)
-        let url = CONFIG.groqEndpoint;
+    // Helper to try fetching
+    const attemptFetch = async (proxyUrl) => {
+        const targetUrl = proxyUrl + encodeURIComponent(CONFIG.groqEndpoint);
         
-        const response = await fetch(url, {
+        const response = await fetch(targetUrl, {
             method: "POST",
             headers: { 
-                "Authorization": `Bearer ${activeKey}`, 
-                "Content-Type": "application/json" 
+                "Authorization": `Bearer ${state.apiKey}`, 
+                "Content-Type": "application/json"
             },
             body: JSON.stringify({
                 messages: [
-                    { role: "system", content: "You are a helpful, concise AI assistant in a cyberpunk terminal." }, 
+                    { role: "system", content: "You are a helpful, concise AI assistant in a terminal." }, 
                     { role: "user", content: prompt }
                 ],
-                model: CONFIG.model
+                model: CONFIG.model,
+                temperature: 0.7
             })
         });
 
         if (!response.ok) {
-            const errData = await response.json().catch(() => ({}));
-            // If we suspect CORS or opaque failure
-            if (response.type === 'opaque' || response.status === 0) {
-                throw new Error("CORS_BLOCK");
-            }
-            throw new Error(errData.error?.message || `API Error ${response.status}`);
+            const errorText = await response.text();
+            if (CONFIG.debug) console.error(`Proxy Error (${proxyUrl}):`, response.status, errorText);
+            throw new Error(`HTTP ${response.status}: ${errorText}`);
         }
 
-        const data = await response.json();
-        const reply = data.choices[0].message.content;
+        return await response.json();
+    };
+
+    // Loop through proxies
+    let success = false;
+    let lastError = null;
+
+    for (let i = 0; i < CONFIG.corsProxies.length; i++) {
+        const proxy = CONFIG.corsProxies[i];
+        if (CONFIG.debug) console.log(`Attempting Proxy ${i+1}/${CONFIG.corsProxies.length}: ${proxy}`);
         
-        removeMsg(loadingId);
-        addMsg("Groq AI", reply, "ai");
-        gainXP(25);
-
-    } catch (error) {
-        // FALLBACK: Try Proxy if direct connection failed
-        if (error.message === "CORS_BLOCK") {
-            updateMsg(loadingId, "🔄 Switching to Proxy...");
+        try {
+            updateMsg(loadingId, `Trying Proxy Node ${i+1}...`);
+            const data = await attemptFetch(proxy);
             
-            try {
-                const proxyUrl = CONFIG.proxyUrl + encodeURIComponent(CONFIG.groqEndpoint);
-                const proxyResponse = await fetch(proxyUrl, {
-                    method: "POST",
-                    headers: { 
-                        "Authorization": `Bearer ${activeKey}`, 
-                        "Content-Type": "application/json" 
-                    },
-                    body: JSON.stringify({
-                        messages: [
-                            { role: "system", content: "You are a helpful, concise AI assistant." }, 
-                            { role: "user", content: prompt }
-                        ],
-                        model: CONFIG.model
-                    })
-                });
-
-                if (!proxyResponse.ok) throw new Error("Proxy Failed");
-                const data = await proxyResponse.json();
-                const reply = data.choices[0].message.content;
-                
-                removeMsg(loadingId);
-                addMsg("Groq AI (Proxy)", reply, "ai");
-                gainXP(25);
-
-            } catch (proxyError) {
-                removeMsg(loadingId);
-                addMsg("System", "Connection Failed. CORS/Network Error.", "system");
-                console.error(proxyError);
-            }
-        } else {
+            // SUCCESS
+            const reply = data.choices[0].message.content;
             removeMsg(loadingId);
-            addMsg("System", `API Error: ${error.message}`, "system");
+            addMsg("Groq AI", reply, "ai");
+            gainXP(25);
+            success = true;
+            break; // Exit loop on success
+            
+        } catch (error) {
+            lastError = error;
+            console.warn(`Proxy ${i} failed:`, error.message);
+            // Continue to next proxy
         }
+    }
+
+    if (!success) {
+        removeMsg(loadingId);
+        addMsg("System", "Connection Failed: All proxies blocked or API limit reached.", "system");
+        if (CONFIG.debug) console.error("Final Error:", lastError);
     }
 }
 
 /* ================= LIVING ROOM LOGIC ================= */
 function handleLivingRoom(text) {
     const lower = text.toLowerCase();
-    
-    // Check for zone switching
     for (const key in ZONES) {
         if (lower.includes('go to ' + key) || lower.includes(ZONES[key].name.toLowerCase())) {
             state.currentZone = key;
@@ -253,8 +239,6 @@ function handleLivingRoom(text) {
             return;
         }
     }
-
-    // If in a zone, respond based on context
     if (!state.currentZone) return addMsg("System", "Enter a zone first (e.g., 'go to library').", "system");
     
     setTimeout(() => {
@@ -321,35 +305,22 @@ function gainXP(amount) {
 /* ================= MQTT ================= */
 function connectMQTT() {
     try {
-        // Using MQTT over WebSockets
         state.mqttClient = mqtt.connect(CONFIG.mqttBroker);
-        
         state.mqttClient.on('connect', () => {
-            console.log("MQTT Connected");
             state.mqttClient.subscribe("termchat-lt/public");
         });
-        
         state.mqttClient.on('message', (t, m) => {
             try {
                 const d = JSON.parse(m.toString());
                 if (d.user !== state.username) addMsg(d.user, d.text, 'remote');
-            } catch(e) { /* ignore malformed packets */ }
+            } catch(e) {}
         });
-
-        state.mqttClient.on('error', (err) => {
-            console.log("MQTT Error", err);
-        });
-    } catch(e) {
-        console.log("MQTT Library not loaded", e);
-    }
+    } catch(e) {}
 }
 
 function publishMQTT(text) {
     if (state.mqttClient && state.mqttClient.connected) {
         state.mqttClient.publish("termchat-lt/public", JSON.stringify({ user: state.username, text: text }));
-    } else {
-        addMsg("System", "Chat Disconnected. Retrying...", "system");
-        connectMQTT();
     }
 }
 
@@ -357,40 +328,21 @@ function publishMQTT(text) {
 function initMatrix() {
     const c = document.getElementById('matrix-canvas');
     if (!c) return;
-    
     const ctx = c.getContext('2d');
-    
-    // Resize handler
-    const resize = () => {
-        c.width = window.innerWidth; 
-        c.height = window.innerHeight;
-    };
-    window.addEventListener('resize', resize);
-    resize();
-
+    c.width = window.innerWidth; c.height = window.innerHeight;
     const chars = "010101XYZ<>[];{}";
-    const fontSize = 14;
-    const columns = c.width / fontSize;
     const drops = [];
+    for(let x=0; x<c.width/14; x++) drops[x]=1;
     
-    for(let x = 0; x < columns; x++) drops[x] = 1;
-
-    setInterval(() => {
-        // Fade effect
-        ctx.fillStyle = "rgba(0, 0, 0, 0.05)";
-        ctx.fillRect(0, 0, c.width, c.height);
-        
-        ctx.fillStyle = "#0F0"; // Green text
-        ctx.font = fontSize + "px monospace";
-        
-        for(let i = 0; i < drops.length; i++) {
+    setInterval(()=>{
+        ctx.fillStyle="rgba(0,0,0,0.05)";
+        ctx.fillRect(0,0,c.width,c.height);
+        ctx.fillStyle="#0F0";
+        ctx.font="14px monospace";
+        for(let i=0;i<drops.length;i++){
             const text = chars.charAt(Math.floor(Math.random() * chars.length));
-            ctx.fillText(text, i * fontSize, drops[i] * fontSize);
-            
-            // Reset drop to top randomly
-            if(drops[i] * fontSize > c.height && Math.random() > 0.975) {
-                drops[i] = 0;
-            }
+            ctx.fillText(text, i*14, drops[i]*14);
+            if(drops[i]*14 > c.height && Math.random() > 0.975) drops[i]=0;
             drops[i]++;
         }
     }, 33);
