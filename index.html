@@ -3,81 +3,469 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TERM_AI: LIVING ROOM v2.6</title>
-    <!-- Tailwind CSS -->
+    <title>Termos LT: System Architect</title>
+    <!-- Tailwind CSS (via CDN for instant styling) -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- MQTT -->
+    <!-- MQTT Library -->
     <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
-    <!-- Styles -->
-    <link rel="stylesheet" href="style.css">
-</head>
-<body class="bg-black text-white overflow-hidden h-screen font-mono selection:bg-purple-500 selection:text-white">
-
-    <!-- MATRIX BACKGROUND -->
-    <canvas id="matrix-canvas" class="fixed top-0 left-0 w-full h-full z-0"></canvas>
-
-    <!-- BOOT SCREEN -->
-    <div id="terminal-boot" class="fixed inset-0 z-50 flex items-center justify-center bg-black/95 p-4">
-        <div class="w-full max-w-2xl border border-purple-500/30 bg-black p-6 rounded-lg shadow-[0_0_30px_rgba(168,85,247,0.2)]">
-            <div class="text-xs text-purple-400 font-bold mb-2">v2.6.0 [GROQ API + LIVING ROOM]</div>
-            <div id="terminal-content" class="h-48 overflow-y-auto mb-4 text-xs text-gray-400 font-mono custom-scrollbar"></div>
-            
-            <div class="border-t border-purple-500/30 pt-4 flex flex-col gap-3">
-                <div id="boot-status" class="text-purple-400 text-xs animate-pulse">INITIALIZING...</div>
-                <div class="grid grid-cols-2 gap-2">
-                    <button onclick="enterApp('chat')" class="p-2 border border-green-500/50 text-green-400 text-xs hover:bg-green-500/20 rounded">[1] CHAT</button>
-                    <button onclick="enterApp('api')" class="p-2 border border-orange-500/50 text-orange-400 text-xs hover:bg-orange-500/20 rounded font-bold">[2] API AI</button>
-                    <button onclick="enterApp('livingroom')" class="p-2 border border-blue-500/50 text-blue-400 text-xs hover:bg-blue-500/20 rounded">[3] LIVING ROOM</button>
-                    <button onclick="enterApp('local')" class="p-2 border border-gray-500/50 text-gray-400 text-xs hover:bg-gray-500/20 rounded">[4] LOCAL</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- API KEY MODAL -->
-    <div id="api-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm">
-        <div class="w-full max-w-md border border-orange-500/50 bg-black p-6 rounded-lg">
-            <h3 class="text-orange-400 font-bold text-lg mb-2">🔑 ENTER GROQ API KEY</h3>
-            <input type="password" id="api-key-input" placeholder="gsk_..." class="w-full bg-black border border-orange-500/30 rounded p-3 text-orange-300 mb-4 outline-none font-mono text-sm">
-            <div class="flex justify-end gap-2">
-                <button onclick="submitApiKey()" class="px-4 py-2 bg-orange-600 hover:bg-orange-500 text-white rounded font-bold text-sm">CONNECT</button>
-                <button onclick="cancelApiKey()" class="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded text-sm">CANCEL</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- MAIN APP -->
-    <div id="main-layout" class="hidden relative z-10 flex flex-col h-screen max-w-4xl mx-auto border-x border-white/5 bg-black/40 backdrop-blur-md">
+    
+    <style>
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #111; }
+        ::-webkit-scrollbar-thumb { background: #0f0; border-radius: 4px; }
         
-        <!-- HEADER -->
-        <header class="p-3 border-b border-white/10 bg-black/60 flex justify-between items-center">
-            <div>
-                <div id="room-title" class="text-[10px] text-gray-400 uppercase tracking-widest">MODE: LOCAL</div>
-                <div id="user-display" class="text-sm font-bold text-white">@USER</div>
-            </div>
-            <div class="w-32">
-                <div class="flex justify-between text-[10px] text-purple-400 mb-1">
-                    <span id="lvl-text">LVL. 1</span>
-                    <span id="xp-text">XP: 0</span>
-                </div>
-                <div class="h-1.5 bg-gray-800 rounded-full overflow-hidden">
-                    <div id="xp-bar" class="h-full bg-gradient-to-r from-purple-500 to-pink-400 w-0 transition-all duration-500"></div>
-                </div>
-            </div>
-        </header>
+        /* CRT Scanline Effect */
+        .scanlines {
+            background: linear-gradient(
+                to bottom,
+                rgba(255,255,255,0),
+                rgba(255,255,255,0) 50%,
+                rgba(0,0,0,0.2) 50%,
+                rgba(0,0,0,0.2)
+            );
+            background-size: 100% 4px;
+            pointer-events: none;
+        }
+        
+        /* Animations */
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .animate-fade-in { animation: fadeIn 0.3s ease-in-out; }
+        
+        /* Glitch Text */
+        .glitch { text-shadow: 2px 0 #0f0, -2px 0 #f00; }
+    </style>
+</head>
+<body class="bg-black text-green-500 font-mono overflow-hidden h-screen w-screen relative selection:bg-green-900 selection:text-white">
 
-        <!-- CHAT AREA -->
-        <main id="chat-container" class="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar"></main>
+    <!-- 1. BACKGROUND: MATRIX RAIN CANVAS -->
+    <canvas id="matrix-canvas" class="absolute inset-0 z-0 opacity-30"></canvas>
+    <div class="scanlines absolute inset-0 z-50 pointer-events-none"></div>
 
-        <!-- INPUT -->
-        <footer class="p-3 bg-black/80 border-t border-white/10">
-            <div class="flex gap-2">
-                <input type="text" id="chatInput" placeholder="Type a message..." class="flex-1 bg-black/50 border border-purple-500/30 rounded px-3 py-2 text-purple-400 outline-none text-xs sm:text-sm">
-                <button onclick="handleSend()" class="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded font-bold text-xs">SEND</button>
-            </div>
-        </footer>
+    <!-- 2. HIDDEN BOOT CONTENT (Source for JS) -->
+    <div id="hidden-boot-content" class="hidden">
+        <!-- Used by JS to populate the boot screen -->
     </div>
 
-    <script src="script.js"></script>
+    <!-- 3. TERMINAL BOOT SCREEN -->
+    <div id="terminal-boot" class="absolute inset-0 z-40 bg-black flex flex-col items-center justify-center p-4">
+        <div class="w-full max-w-4xl h-[80vh] border border-green-500/30 bg-black/80 rounded-lg shadow-[0_0_20px_rgba(0,255,0,0.1)] overflow-hidden flex flex-col">
+            <!-- Boot Header -->
+            <div class="bg-green-900/20 p-2 border-b border-green-500/30 flex justify-between items-center">
+                <span class="text-xs text-green-400 animate-pulse">TERMOS_LT_BOOT_SEQ_v2.0</span>
+                <span id="boot-status" class="text-xs text-yellow-400 font-bold">INITIALIZING...</span>
+            </div>
+            <!-- Boot Log -->
+            <div id="terminal-content" class="flex-1 p-4 font-mono text-sm overflow-y-auto text-gray-300 space-y-1">
+                <!-- JS will inject text here -->
+            </div>
+            <!-- Boot Controls (Hidden initially, shown via JS) -->
+            <div id="boot-controls" class="hidden p-4 border-t border-green-500/30 grid grid-cols-3 gap-4">
+                <button onclick="enterApp('chat')" class="px-4 py-2 border border-green-500 hover:bg-green-500/20 text-green-400 transition">MODE 1: CHAT</button>
+                <button onclick="enterApp('api')" class="px-4 py-2 border border-cyan-500 hover:bg-cyan-500/20 text-cyan-400 transition">MODE 2: AI (API)</button>
+                <button onclick="enterApp('local')" class="px-4 py-2 border border-purple-500 hover:bg-purple-500/20 text-purple-400 transition">MODE 3: LOCAL</button>
+                <button onclick="enterApp('admin')" class="col-span-3 px-4 py-2 bg-red-900/40 border border-red-500 hover:bg-red-500/20 text-red-500 font-bold transition">MODE 4: SYSTEM ARCHITECT (ROOT)</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 4. MAIN APPLICATION LAYOUT (Hidden Initially) -->
+    <div id="main-layout" class="hidden h-full w-full z-30 flex flex-col md:flex-row">
+        
+        <!-- Sidebar: Stats & Info -->
+        <div class="w-full md:w-64 bg-black/90 border-r border-green-500/30 p-4 flex flex-col gap-4 backdrop-blur-sm">
+            <div class="text-center border-b border-green-500/30 pb-4">
+                <h1 class="text-2xl font-bold text-white glitch tracking-widest">TERMOS LT</h1>
+                <div id="user-display" class="text-green-400 text-sm mt-1">@GUEST</div>
+            </div>
+
+            <!-- Stats -->
+            <div class="space-y-2">
+                <div class="flex justify-between text-xs text-gray-400">
+                    <span>RANK</span>
+                    <span id="lvl-text">LVL 1 NEWBIE</span>
+                </div>
+                <div class="h-2 bg-gray-900 rounded-full overflow-hidden">
+                    <div id="xp-bar" class="h-full bg-green-500 w-[0%] transition-all duration-500"></div>
+                </div>
+                <div class="text-right text-[10px] text-green-600" id="xp-text">XP: 0</div>
+            </div>
+
+            <!-- Room Info -->
+            <div class="mt-4">
+                <div class="text-xs text-gray-500 mb-1">CURRENT SECTOR</div>
+                <div id="room-title" class="text-cyan-400 font-bold">LIVING_ROOM</div>
+            </div>
+            
+            <!-- Admin Status Indicator -->
+            <div id="admin-indicator" class="hidden mt-auto p-2 border border-red-500/50 bg-red-900/20 text-red-500 text-center text-xs animate-pulse">
+                ⚠ ROOT ACCESS ACTIVE
+            </div>
+        </div>
+
+        <!-- Main Chat Area -->
+        <div class="flex-1 flex flex-col relative">
+            <!-- Chat History -->
+            <div id="chat-container" class="flex-1 overflow-y-auto p-4 space-y-4 pb-24">
+                <!-- Messages injected here -->
+            </div>
+
+            <!-- Input Area -->
+            <div class="absolute bottom-0 w-full bg-black/80 border-t border-green-500/30 p-4 backdrop-blur-md">
+                <div class="max-w-4xl mx-auto flex gap-2">
+                    <input type="text" id="chatInput" placeholder="Enter command or message..." 
+                        class="flex-1 bg-gray-900/50 border border-gray-700 text-white p-3 rounded-lg focus:outline-none focus:border-green-500 placeholder-gray-600 font-mono">
+                    <button onclick="handleSend()" class="bg-green-700 hover:bg-green-600 text-white px-6 rounded-lg font-bold transition">SEND</button>
+                </div>
+                <div class="text-center mt-2">
+                    <span class="text-[10px] text-gray-600">COMMANDS: /ai [prompt] | /ai enable root | /ai hands off | play music</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- HIDDEN AUDIO (For Music Feature) -->
+    <audio id="bg-music" loop>
+        <source src="https://cdn.pixabay.com/download/audio/2022/03/24/audio_1f5b728e62.mp3?filename=lo-fi-study-112762.mp3" type="audio/mpeg">
+    </audio>
+
+    <!-- JAVASCRIPT LOGIC -->
+    <script>
+        // --- 1. CONFIGURATION ---
+        // ⚠️ KEYS CONFIGURED AS REQUESTED
+        const GROQ_API_KEY = "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";
+        const ZHIPU_API_KEY = "42b0a4fbe60e4568ba1b74d5e8d030d6.xSVMYljtqVXmRr33";
+        
+        let USE_LOCAL_AI = false;
+        let USE_GROQ = true; // Toggle between Groq/Zhipu
+        const MQTT_BROKER_URL = 'wss://broker.emqx.io:8084/mqtt';
+
+        // --- 2. STATE ---
+        let username = 'Guest';
+        let mqttClient = null;
+        let currentRoom = 'living_room';
+        let userStats = { level: 1, xp: 0, avatar: '>_<', title: 'Newbie' };
+        const LEVELS = ['Newbie', 'Apprentice', 'Coder', 'Hacker', 'Architect', 'Wizard', 'Master', 'Guru', 'Legend'];
+
+        let adminMode = false; 
+        let handsOff = false; 
+        let userRole = 'USER'; 
+
+        // --- 3. INITIALIZATION ---
+        window.addEventListener('load', () => {
+            initMatrix();
+            runTerminalBoot();
+        });
+
+        // --- 4. TERMINAL BOOT LOGIC ---
+        async function runTerminalBoot() {
+            const term = document.getElementById('terminal-content');
+            const statusEl = document.getElementById('boot-status');
+            const controls = document.getElementById('boot-controls');
+            
+            const presentationText = [
+                "INITIALIZING TERMOS LT v2.0...",
+                "Loading kernel modules... [OK]",
+                "Connecting to Neural Net... [OK]",
+                "",
+                ">>> DETECTED FEATURES:",
+                ">>> [1] Multiverse Chat (MQTT)",
+                ">>> [2] Gamification System (XP/Leveling)",
+                ">>> [3] Music Engine (Ogg/MP3)",
+                ">>> [4] AI Assistant (NEURAL)",
+                "",
+                ">>> SELECT MODE:",
+                ">>> [1] Chat/Music Only (FAST)",
+                ">>> [2] AI Mode (Groq/Zhipu API)",
+                ">>> [3] Local AI Mode (Simulated)",
+                ">>> [4] ADMIN MODE (System Architect)",
+                "",
+                "Type '1', '2', '3' or '4' to initialize..."
+            ];
+
+            statusEl.innerText = "AUTO-SEQUENCE ACTIVE...";
+
+            for (let i = 0; i < presentationText.length; i++) {
+                const line = presentationText[i];
+                // Simple formatting
+                let formattedLine = line
+                    .replace(/\[OK\]/g, '<span class="text-green-400">[OK]</span>')
+                    .replace(/>>>/g, '<span class="text-gray-500">>>></span>');
+
+                const div = document.createElement('div');
+                div.className = "opacity-80 animate-fade-in font-mono text-sm"; 
+                div.innerHTML = `<span class="opacity-80 text-gray-500 mr-2">${(i < 10 ? '0'+i : '  '+i)} |</span> ${formattedLine}`;
+                
+                term.appendChild(div);
+                term.scrollTop = term.scrollHeight;
+                await new Promise(r => setTimeout(r, 30)); 
+            }
+
+            statusEl.innerText = "SYSTEM READY. SELECT MODE BELOW.";
+            statusEl.className = "text-green-500 font-bold animate-pulse";
+            controls.classList.remove('hidden');
+        }
+
+        // --- 5. BOOT HANDLERS ---
+        async function enterApp(mode) {
+            const boot = document.getElementById('terminal-boot');
+            const main = document.getElementById('main-layout');
+            
+            boot.style.display = 'none';
+            main.classList.remove('hidden');
+            
+            // Generate random username if guest
+            if (!username || username === 'Guest') {
+                 username = "Operator_" + Math.floor(Math.random() * 9999);
+            }
+            document.getElementById('user-display').innerText = `@${username.toUpperCase()}`;
+            
+            // Init Systems
+            loadStats();
+            updateStatsUI();
+            connectMQTT();
+
+            if (mode === 'admin') {
+                adminMode = true;
+                userRole = 'ADMIN';
+                document.getElementById('admin-indicator').classList.remove('hidden');
+                initMatrix('#ff0000'); // Red Matrix
+                addSystemMessage("SYSTEM ARCHITECT MODE: ROOT ACCESS GRANTED.");
+            } else if (mode === 'local') {
+                USE_LOCAL_AI = true;
+                addSystemMessage("Local AI Mode (Simulated).");
+            } else {
+                addSystemMessage("System Started: Online Mode.");
+            }
+        }
+
+        // --- 6. AI LOGIC ---
+        async function talkToClone(prompt) {
+            if (adminMode && userRole === 'ADMIN') {
+                // Admin Persona (Just a quick feedback for demo)
+                addAIMessage("Processing Root Command...", false);
+                setTimeout(() => {
+                    addAIMessage("[SYSTEM ARCHITECT]: Command authorized.", false);
+                }, 800);
+                return;
+            }
+
+            if (handsOff) {
+                addAIMessage("❌ ERROR: AI Hands are disengaged.", true);
+                return;
+            }
+
+            if (USE_LOCAL_AI) {
+                const responses = ["Running locally...", "I am offline.", "No cloud connection."];
+                addAIMessage(responses[Math.floor(Math.random() * responses.length)], false);
+                return;
+            }
+
+            // REMOTE AI CALL
+            const provider = USE_GROQ ? 'Groq' : 'Zhipu';
+            const endpoint = USE_GROQ ? "https://api.groq.com/openai/v1/chat/completions" : "https://open.bigmodel.cn/api/paas/v4/chat/completions";
+            const model = USE_GROQ ? "llama3-70b-8192" : "glm-4";
+            const authHeader = `Bearer ${USE_GROQ ? GROQ_API_KEY : ZHIPU_API_KEY}`;
+
+            try {
+                addAIMessage(`Thinking via ${provider}...`, false);
+                
+                const req = await fetch(endpoint, {
+                    method: "POST",
+                    headers: { 
+                        "Content-Type": "application/json", 
+                        "Authorization": authHeader
+                    },
+                    body: JSON.stringify({
+                        model: model,
+                        temperature: 0.7,
+                        messages: [
+                            { role: "system", content: "You are a helpful AI assistant for a Cyberpunk OS." }, 
+                            { role: "user", "content": prompt }
+                        ]
+                    })
+                });
+
+                if (!req.ok) throw new Error(`API Error: ${req.status}`);
+                const json = await req.json();
+                // Handle slight difference in Zhipu vs Groq response structure
+                const reply = json.choices[0].message.content;
+                addAIMessage(reply, false);
+                
+            } catch (err) {
+                addAIMessage(`❌ CONNECTION FAILED: ${err.message}`, true);
+            }
+        }
+
+        // --- 7. UI & UTILS ---
+        function updateStatsUI() {
+            const titleEl = document.getElementById('lvl-text');
+            const xpEl = document.getElementById('xp-text');
+            const barEl = document.getElementById('xp-bar');
+            if(titleEl) titleEl.innerText = `LVL. ${userStats.level} ${userStats.title.toUpperCase()}`;
+            if(xpEl) xpEl.innerText = `XP: ${userStats.xp.toLocaleString()}`;
+            const progress = (userStats.xp % 1000) / 10; 
+            if(barEl) barEl.style.width = `${progress}%`;
+        }
+
+        const chatInput = document.getElementById('chatInput');
+        chatInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') handleSend();
+        });
+
+        function handleSend() {
+            const txt = chatInput.value.trim();
+            if(!txt) return;
+            chatInput.value = '';
+            processCommand(txt);
+        }
+
+        // --- 8. COMMAND PROCESSING ---
+        function processCommand(txt) {
+            const lower = txt.toLowerCase();
+
+            // ADMIN COMMANDS
+            if (adminMode) {
+                if (lower.includes('hands off')) {
+                    handsOff = true;
+                    addUserMessage(txt);
+                    addSystemMessage("⚠ SYSTEM: AI Hands disengaged.");
+                    return;
+                }
+                if (lower.includes('hands on')) {
+                    handsOff = false;
+                    addUserMessage(txt);
+                    addSystemMessage("✓ SYSTEM: AI Hands re-engaged.");
+                    return;
+                }
+            }
+
+            // STANDARD COMMANDS
+            if (txt.startsWith('/ai')) {
+                const prompt = txt.replace('/ai', '').trim();
+                if(!prompt) return;
+                addUserMessage(prompt); // Show the user what they asked
+                talkToClone(prompt);
+                return;
+            }
+
+            const audio = document.getElementById('bg-music');
+            if (lower.includes('play music')) {
+                addUserMessage(txt);
+                if (audio) {
+                    audio.play().then(()=>addAIMessage("🎵 Playing Lo-Fi...", true));
+                }
+                return;
+            }
+            if (lower.includes('stop music')) {
+                addUserMessage(txt);
+                if (audio) audio.pause();
+                return;
+            }
+
+            // STANDARD CHAT
+            addUserMessage(txt);
+            publishMessage(txt);
+            addXP(10);
+        }
+
+        // --- 9. RENDERING ---
+        function addUserMessage(text) {
+            const container = document.getElementById('chat-container');
+            const html = `<div class="flex flex-row-reverse items-end gap-3 animate-fade-in"><div class="w-8 h-8 rounded-full bg-gradient-to-tr from-green-400 to-emerald-600 flex items-center justify-center border border-white/20 font-mono text-black text-xs font-bold">ME</div><div class="p-4 rounded-l-xl rounded-br-xl text-sm text-green-100 shadow-[0_4px_20px_rgba(0,0,0,0.3)] max-w-[80%] bg-green-900/20 backdrop-blur-md border border-green-500/30"><div class="flex items-center gap-2 mb-1 opacity-80 text-xs font-mono text-green-400"><span>@${username.toUpperCase()}</span></div><p class="leading-relaxed text-gray-100">${escapeHtml(text)}</p></div></div>`;
+            container.insertAdjacentHTML('beforeend', html);
+            scrollToBottom();
+        }
+
+        function addAIMessage(text, isAction) {
+            const container = document.getElementById('chat-container');
+            const cssClass = isAction ? 'border border-cyan-500/50 shadow-[0_0_15px_rgba(0,243,255,0.2)]' : 'border border-white/10';
+            
+            const html = `<div class="flex flex-row items-start gap-3 animate-fade-in"><div class="w-8 h-8 rounded-full bg-black border border-cyan-500 flex items-center justify-center text-cyan-400 font-mono text-[10px]">AI</div><div class="flex-1"><div class="p-4 rounded-r-xl rounded-bl-xl bg-black/40 ${cssClass} text-sm text-gray-200 backdrop-blur-sm"><p class="leading-relaxed">${text}</p></div></div>`;
+            container.insertAdjacentHTML('beforeend', html);
+            scrollToBottom();
+        }
+
+        function addSystemMessage(text) {
+            const container = document.getElementById('chat-container');
+            const html = `<div class="p-4 rounded-xl text-sm text-cyan-100 shadow-[0_4px_20px_rgba(0,0,0,0.3)] animate-fade-in bg-cyan-900/20 border border-cyan-500/30 text-center"><span class="font-bold text-cyan-400">⚠ SYSTEM</span>: ${text}</div>`;
+            container.insertAdjacentHTML('beforeend', html);
+            scrollToBottom();
+        }
+
+        function scrollToBottom() {
+            const c = document.getElementById('chat-container');
+            if(c) c.scrollTop = c.scrollHeight;
+        }
+
+        function connectMQTT() {
+            // MQTT Logic simplified for immediate fix, will connect if available
+            try {
+                const clientId = "termos-" + Math.random().toString(16).substr(2, 8);
+                mqttClient = mqtt.connect(MQTT_BROKER_URL, { clientId: clientId, keepalive: 60 });
+                mqttClient.on('connect', () => mqttClient.subscribe('termchat/messages'));
+                mqttClient.on('message', (topic, msg) => {
+                    // Handle incoming messages
+                });
+            } catch (e) { console.log("MQTT Library not loaded or error", e); }
+        }
+
+        function publishMessage(text) {
+            if (mqttClient && mqttClient.connected) {
+                mqttClient.publish('termchat/messages', JSON.stringify({ user: username, text: text }));
+            }
+        }
+
+        function addXP(amount) {
+            userStats.xp += amount;
+            updateStatsUI();
+            localStorage.setItem('termos_stats', JSON.stringify(userStats));
+        }
+
+        function loadStats() {
+            const saved = localStorage.getItem('termos_stats');
+            if(saved) userStats = JSON.parse(saved);
+        }
+
+        function escapeHtml(text) {
+            return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        }
+
+        // --- 10. MATRIX ANIMATION ---
+        function initMatrix(overrideColor = '#0F0') {
+            const c = document.getElementById('matrix-canvas');
+            if(!c) return;
+            const ctx = c.getContext('2d');
+            c.width = window.innerWidth; c.height = window.innerHeight;
+            
+            const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@#$%^&*';
+            const fontSize = 14;
+            const columns = c.width / fontSize;
+            const drops = Array(Math.floor(columns)).fill(1);
+
+            const rainColor = overrideColor;
+
+            function draw() {
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.05)';
+                ctx.fillRect(0, 0, c.width, c.height);
+                ctx.fillStyle = rainColor; 
+                ctx.font = fontSize + 'px monospace';
+                
+                for(let i=0; i<drops.length; i++) {
+                    const text = letters[Math.floor(Math.random()*letters.length)];
+                    ctx.fillText(text, i*fontSize, drops[i]*fontSize);
+
+                    if(drops[i]*fontSize > c.height && Math.random() > 0.975) drops[i] = 0;
+                    drops[i]++;
+                }
+            }
+            
+            setInterval(draw, 33);
+            window.addEventListener('resize', () => { 
+                c.width = window.innerWidth; 
+                c.height = window.innerHeight; 
+            });
+        }
+    </script>
 </body>
 </html>
