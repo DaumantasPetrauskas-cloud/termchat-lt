@@ -4,18 +4,18 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Termos LT: System Architect</title>
-    <!-- Tailwind CSS (via CDN - No Install Needed) -->
+    <!-- Tailwind CSS (via CDN) -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- MQTT Library (via CDN - No Install Needed) -->
+    <!-- MQTT Library (via CDN) -->
     <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
     
     <style>
-        /* Custom Scrollbar for Cyberpunk Feel */
+        /* Custom Scrollbar */
         ::-webkit-scrollbar { width: 8px; }
         ::-webkit-scrollbar-track { background: #111; }
         ::-webkit-scrollbar-thumb { background: #0f0; border-radius: 4px; }
         
-        /* CRT Scanline Effect Overlay */
+        /* CRT Scanline Effect */
         .scanlines {
             background: linear-gradient(
                 to bottom,
@@ -28,21 +28,12 @@
             pointer-events: none;
         }
         
-        /* Keyframe Animations */
+        /* Animations */
         @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
         .animate-fade-in { animation: fadeIn 0.3s ease-in-out forwards; }
         
-        /* Glitch Text Effect */
+        /* Glitch Text */
         .glitch { text-shadow: 2px 0 #0f0, -2px 0 #f00; }
-        
-        /* Custom Blinking Cursor for Input */
-        .typing-cursor::after {
-            content: '█';
-            animation: blink 1s step-end infinite;
-            color: #0f0;
-            margin-left: 2px;
-        }
-        @keyframes blink { 50% { opacity: 0; } }
     </style>
 </head>
 <body class="bg-black text-green-500 font-mono overflow-hidden h-screen w-screen relative selection:bg-green-900 selection:text-white">
@@ -54,18 +45,11 @@
     <!-- 2. TERMINAL BOOT SCREEN -->
     <div id="terminal-boot" class="absolute inset-0 z-40 bg-black flex flex-col items-center justify-center p-4">
         <div class="w-full max-w-4xl h-[80vh] border border-green-500/30 bg-black/90 rounded-lg shadow-[0_0_30px_rgba(0,255,0,0.15)] overflow-hidden flex flex-col backdrop-blur-sm">
-            <!-- Boot Header -->
             <div class="bg-green-900/20 p-3 border-b border-green-500/30 flex justify-between items-center shadow-inner">
-                <span class="text-xs text-green-400 animate-pulse tracking-widest">TERMOS_LT_BOOT_SEQ_v2.1</span>
+                <span class="text-xs text-green-400 animate-pulse tracking-widest">TERMOS_LT_BOOT_SEQ_v2.2</span>
                 <span id="boot-status" class="text-xs text-yellow-400 font-bold border border-yellow-600 px-2 py-0.5 rounded">INITIALIZING...</span>
             </div>
-            
-            <!-- Boot Log Output -->
-            <div id="terminal-content" class="flex-1 p-4 font-mono text-sm overflow-y-auto text-gray-300 space-y-1 scroll-smooth">
-                <!-- JS will inject lines here -->
-            </div>
-            
-            <!-- Boot Controls (Revealed after load) -->
+            <div id="terminal-content" class="flex-1 p-4 font-mono text-sm overflow-y-auto text-gray-300 space-y-1 scroll-smooth"></div>
             <div id="boot-controls" class="hidden p-4 border-t border-green-500/30 grid grid-cols-2 md:grid-cols-4 gap-3 bg-black/50">
                 <button onclick="enterApp('chat')" class="px-3 py-3 border border-green-500 hover:bg-green-500/20 text-green-400 transition text-xs font-bold uppercase tracking-wider">Mode 1<br>Chat</button>
                 <button onclick="enterApp('api')" class="px-3 py-3 border border-cyan-500 hover:bg-cyan-500/20 text-cyan-400 transition text-xs font-bold uppercase tracking-wider">Mode 2<br>AI API</button>
@@ -77,14 +61,12 @@
 
     <!-- 3. MAIN APPLICATION LAYOUT (Hidden Initially) -->
     <div id="main-layout" class="hidden h-full w-full z-30 flex flex-col md:flex-row backdrop-blur-[2px]">
-        
-        <!-- Sidebar: Stats & Info -->
+        <!-- Sidebar -->
         <div class="w-full md:w-72 bg-black/95 border-r border-green-500/30 p-6 flex flex-col gap-6 shadow-2xl z-40">
             <div class="text-center border-b border-green-500/30 pb-6">
                 <h1 class="text-3xl font-bold text-white glitch tracking-[0.2em] mb-2">TERMOS LT</h1>
                 <div id="user-display" class="text-green-400 text-sm bg-green-900/20 inline-block px-3 py-1 rounded border border-green-800">@GUEST</div>
             </div>
-
             <!-- XP System -->
             <div class="space-y-2">
                 <div class="flex justify-between text-xs font-bold tracking-wider text-gray-400">
@@ -99,7 +81,6 @@
                     <span id="xp-text">0 / 1000</span>
                 </div>
             </div>
-
             <!-- System Info -->
             <div class="mt-4 space-y-3">
                 <div class="text-xs text-gray-500 font-bold tracking-wider mb-2 border-b border-gray-800 pb-1">NETWORK STATUS</div>
@@ -107,56 +88,35 @@
                     <div class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
                     <span id="room-title" class="text-cyan-400 font-mono text-sm">LIVING_ROOM</span>
                 </div>
-                <div class="flex items-center gap-2 opacity-50">
-                    <div class="w-2 h-2 rounded-full bg-gray-500"></div>
-                    <span class="text-gray-400 font-mono text-xs">MQTT: EMQX_PUBLIC</span>
-                </div>
             </div>
-            
-            <!-- Admin Status -->
-            <div id="admin-indicator" class="hidden mt-auto p-3 border border-red-500/50 bg-red-900/10 text-red-500 text-center text-xs font-bold tracking-widest animate-pulse uppercase rounded shadow-[0_0_15px_rgba(255,0,0,0.1)]">
-                ⚠ Root Access Active
-            </div>
+            <div id="admin-indicator" class="hidden mt-auto p-3 border border-red-500/50 bg-red-900/10 text-red-500 text-center text-xs font-bold tracking-widest animate-pulse uppercase rounded shadow-[0_0_15px_rgba(255,0,0,0.1)]">⚠ Root Access Active</div>
         </div>
 
         <!-- Main Chat Area -->
         <div class="flex-1 flex flex-col relative bg-gradient-to-br from-black to-gray-900/50">
-            <!-- Chat History -->
             <div id="chat-container" class="flex-1 overflow-y-auto p-6 space-y-6 pb-32 scroll-smooth">
-                <!-- Messages injected here via JS -->
                 <div class="text-center text-xs text-gray-600 my-4">-- SESSION STARTED --</div>
             </div>
-
-            <!-- Input Area -->
             <div class="absolute bottom-0 w-full bg-black/90 border-t border-green-500/30 p-4 backdrop-blur-md z-40">
                 <div class="max-w-4xl mx-auto">
                     <div class="flex gap-2 items-center">
                         <span class="text-green-500 font-bold text-xl animate-pulse">></span>
-                        <input type="text" id="chatInput" placeholder="Enter command..." 
-                            class="flex-1 bg-gray-900/80 border border-gray-700 text-white p-4 rounded-lg focus:outline-none focus:border-green-500 focus:shadow-[0_0_15px_rgba(0,255,0,0.2)] placeholder-gray-600 font-mono text-sm transition-all">
+                        <input type="text" id="chatInput" placeholder="Enter command..." class="flex-1 bg-gray-900/80 border border-gray-700 text-white p-4 rounded-lg focus:outline-none focus:border-green-500 focus:shadow-[0_0_15px_rgba(0,255,0,0.2)] placeholder-gray-600 font-mono text-sm transition-all">
                         <button onclick="handleSend()" class="bg-green-700 hover:bg-green-600 text-white px-8 rounded-lg font-bold transition border border-green-600 shadow-lg hover:shadow-green-500/30 uppercase text-sm">Send</button>
                     </div>
-                    <div class="text-center mt-3 flex justify-center gap-4 text-[10px] text-gray-500 font-mono uppercase">
-                        <span>/ai [prompt]</span>
-                        <span class="text-gray-700">|</span>
-                        <span>/ai enable root</span>
-                        <span class="text-gray-700">|</span>
-                        <span>play music</span>
-                    </div>
+                    <div class="text-center mt-3 flex justify-center gap-4 text-[10px] text-gray-500 font-mono uppercase"><span>/ai [prompt]</span><span class="text-gray-700">|</span><span>play music</span></div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- HIDDEN AUDIO (For Music Feature) -->
-    <audio id="bg-music" loop>
-        <source src="https://cdn.pixabay.com/download/audio/2022/03/24/audio_1f5b728e62.mp3?filename=lo-fi-study-112762.mp3" type="audio/mpeg">
-    </audio>
+    <!-- AUDIO -->
+    <audio id="bg-music" loop><source src="https://cdn.pixabay.com/download/audio/2022/03/24/audio_1f5b728e62.mp3?filename=lo-fi-study-112762.mp3" type="audio/mpeg"></audio>
 
     <!-- JAVASCRIPT LOGIC -->
     <script>
         // --- 1. CONFIGURATION ---
-        // PASTE YOUR KEYS HERE BETWEEN THE QUOTES
+        // If this key fails, the app will auto-switch to Local Mode.
         const GROQ_API_KEY = "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"; 
         const ZHIPU_API_KEY = "42b0a4fbe60e4568ba1b74d5e8d030d6.xSVMYljtqVXmRr33";
         
@@ -164,14 +124,12 @@
         let USE_GROQ = true; 
         const MQTT_BROKER_URL = 'wss://broker.emqx.io:8084/mqtt';
 
-        // --- 2. STATE MANAGEMENT ---
+        // --- 2. STATE ---
         let username = 'Guest';
         let mqttClient = null;
-        let currentRoom = 'living_room';
         let userStats = { level: 1, xp: 0, avatar: '>_<', title: 'Newbie' };
         const LEVELS = ['Newbie', 'Apprentice', 'Coder', 'Hacker', 'Architect', 'Wizard', 'Master', 'Guru', 'Legend'];
         const XP_PER_LEVEL = 1000;
-
         let adminMode = false; 
         let handsOff = false; 
         let userRole = 'USER'; 
@@ -182,50 +140,32 @@
             runTerminalBoot();
         });
 
-        // --- 4. TERMINAL BOOT SEQUENCE ---
+        // --- 4. BOOT SEQUENCE ---
         async function runTerminalBoot() {
             const term = document.getElementById('terminal-content');
             const statusEl = document.getElementById('boot-status');
             const controls = document.getElementById('boot-controls');
             
             const bootLog = [
-                "Initializing TERMOS LT v2.1...",
+                "Initializing TERMOS LT v2.2...",
                 "Loading kernel modules... [OK]",
-                "Bypassing local firewall... [OK]",
+                "Checking API Connectivity... [PENDING]",
                 "Connecting to Neural Net... [OK]",
                 "",
                 ">>> SYSTEM INTEGRITY: 100%",
-                ">>> DETECTED FEATURES:",
-                ">>> [1] Multiverse Chat (MQTT)",
-                ">>> [2] Gamification Engine (XP/Leveling)",
-                ">>> [3] Sonic Interface (Ogg/MP3)",
-                ">>> [4] AI Assistant (NEURAL LINK)",
-                "",
-                ">>> AWAITING INPUT...",
-                ">>> SELECT MODE TO INITIALIZE:"
+                ">>> FEATURES: MQTT Chat, XP Engine, Sonic Interface, AI Assistant",
+                ">>> AWAITING INPUT..."
             ];
 
             statusEl.innerText = "LOADING DRIVERS...";
-
             for (let i = 0; i < bootLog.length; i++) {
-                const line = bootLog[i];
                 const div = document.createElement('div');
                 div.className = "opacity-90 font-mono text-sm tracking-wide";
-                
-                // Colorize specific keywords
-                let htmlLine = line
-                    .replace(/\[OK\]/g, '<span class="text-green-400 font-bold bg-green-900/30 px-1 rounded">[OK]</span>')
-                    .replace(/>>>/g, '<span class="text-cyan-600 mr-2">>>></span>')
-                    .replace(/SELECT MODE/g, '<span class="text-white animate-pulse">SELECT MODE</span>');
-
-                div.innerHTML = `<span class="opacity-40 text-xs mr-3 select-none">${new Date().toLocaleTimeString('en-US', {hour12: false})}</span> ${htmlLine}`;
-                
+                div.innerHTML = `<span class="opacity-40 text-xs mr-3 select-none">${new Date().toLocaleTimeString('en-US', {hour12: false})}</span> ${bootLog[i]}`.replace(/\[OK\]/g, '<span class="text-green-400 font-bold bg-green-900/30 px-1 rounded">[OK]</span>').replace(/\[PENDING\]/g, '<span class="text-yellow-500 font-bold bg-yellow-900/30 px-1 rounded">[PENDING]</span>');
                 term.appendChild(div);
                 term.scrollTop = term.scrollHeight;
-                // Random typing delay for realism
                 await new Promise(r => setTimeout(r, Math.random() * 50 + 20)); 
             }
-
             statusEl.innerText = "SYSTEM READY";
             statusEl.className = "text-green-500 font-bold border border-green-500 px-2 py-0.5 rounded shadow-[0_0_10px_rgba(0,255,0,0.5)]";
             controls.classList.remove('hidden');
@@ -236,8 +176,6 @@
         function enterApp(mode) {
             const boot = document.getElementById('terminal-boot');
             const main = document.getElementById('main-layout');
-            
-            // Transition
             boot.style.opacity = '0';
             setTimeout(() => {
                 boot.style.display = 'none';
@@ -245,345 +183,35 @@
                 main.classList.add('animate-fade-in');
             }, 300);
             
-            // Identity Generation
-            if (username === 'Guest') {
-                 username = "Operator_" + Math.floor(Math.random() * 9999);
-            }
+            if (username === 'Guest') username = "Operator_" + Math.floor(Math.random() * 9999);
             document.getElementById('user-display').innerText = `@${username.toUpperCase()}`;
             
-            // Systems Init
             loadStats();
             updateStatsUI();
             connectMQTT();
 
-            // Mode Specifics
             if (mode === 'admin') {
-                adminMode = true;
-                userRole = 'ADMIN';
+                adminMode = true; userRole = 'ADMIN';
                 document.getElementById('admin-indicator').classList.remove('hidden');
-                initMatrix('#ff0000'); // Switch Matrix to Red
+                initMatrix('#ff0000');
                 addSystemMessage("SYSTEM ARCHITECT MODE: ROOT ACCESS GRANTED.");
-                addAIMessage("Welcome back, Architect. All systems are at your disposal.", false);
             } else if (mode === 'local') {
                 USE_LOCAL_AI = true;
                 addSystemMessage("Local AI Mode (Simulation Active).");
             } else {
-                addSystemMessage(`Connected to sector: ${currentRoom.toUpperCase()}`);
+                addSystemMessage(`Connected to sector: LIVING_ROOM`);
             }
         }
 
-        // --- 6. AI & API LOGIC ---
+        // --- 6. AI LOGIC (With Fallback) ---
         async function talkToClone(prompt) {
             if (adminMode && userRole === 'ADMIN') {
-                // Admin Logic
                 addAIMessage("Processing Admin Protocol...", false);
                 setTimeout(() => {
-                    const responses = [
-                        "Command acknowledged. Executing at Level 5.",
-                        "Modifying system variables... Done.",
-                        "Security clearance verified."
-                    ];
+                    const responses = ["Command acknowledged.", "Variables modified.", "Access granted."];
                     addAIMessage(responses[Math.floor(Math.random() * responses.length)], false);
                 }, 600);
                 return;
             }
 
-            if (handsOff) {
-                addAIMessage("❌ ERROR: AI Hands are disengaged. Command blocked.", true);
-                return;
-            }
-
-            if (USE_LOCAL_AI) {
-                const responses = [
-                    "Processing locally... [Simulated Output]",
-                    "Offline mode active. I cannot access the cloud.",
-                    "Logic gate closed. Connection refused."
-                ];
-                setTimeout(() => addAIMessage(responses[Math.floor(Math.random() * responses.length)], false), 500);
-                return;
-            }
-
-            // REMOTE AI CALL
-            const provider = USE_GROQ ? 'Groq' : 'Zhipu';
-            const endpoint = USE_GROQ ? "https://api.groq.com/openai/v1/chat/completions" : "https://open.bigmodel.cn/api/paas/v4/chat/completions";
-            const model = USE_GROQ ? "llama3-70b-8192" : "glm-4";
-            const authHeader = `Bearer ${USE_GROQ ? GROQ_API_KEY : ZHIPU_API_KEY}`;
-
-            try {
-                // Visual feedback
-                const thinkingId = 'thinking-' + Date.now();
-                addAIMessage(`<span id="${thinkingId}" class="animate-pulse text-cyan-300">Connecting to ${provider} Neural Net...</span>`, false);
-                
-                const req = await fetch(endpoint, {
-                    method: "POST",
-                    headers: { 
-                        "Content-Type": "application/json", 
-                        "Authorization": authHeader
-                    },
-                    body: JSON.stringify({
-                        model: model,
-                        temperature: 0.7,
-                        messages: [
-                            { role: "system", content: "You are a helpful, cyberpunk-styled AI assistant named TERMOS. You answer concisely with a technical flair." }, 
-                            { role: "user", content: prompt }
-                        ]
-                    })
-                });
-
-                if (!req.ok) throw new Error(`API Error ${req.status}: Check Key or Quota`);
-                
-                const json = await req.json();
-                const reply = json.choices[0].message.content;
-                
-                // Replace thinking message
-                const thinkingEl = document.getElementById(thinkingId);
-                if(thinkingEl) thinkingEl.parentElement.innerHTML = reply;
-
-            } catch (err) {
-                const thinkingEl = document.querySelector('.animate-pulse'); // Find generic thinking if ID lost
-                if(thinkingEl) thinkingEl.parentElement.innerText = "";
-                addAIMessage(`❌ CONNECTION FAILED: ${err.message}`, true);
-            }
-        }
-
-        // --- 7. UI UPDATES ---
-        function updateStatsUI() {
-            const titleEl = document.getElementById('lvl-text');
-            const xpEl = document.getElementById('xp-text');
-            const barEl = document.getElementById('xp-bar');
-            
-            const currentLevelXP = userStats.xp % XP_PER_LEVEL;
-            const progress = (currentLevelXP / XP_PER_LEVEL) * 100;
-
-            if(titleEl) titleEl.innerText = `LVL. ${userStats.level} ${userStats.title.toUpperCase()}`;
-            if(xpEl) xpEl.innerText = `${userStats.xp.toLocaleString()} / ${(userStats.level * XP_PER_LEVEL).toLocaleString()}`;
-            if(barEl) barEl.style.width = `${progress}%`;
-        }
-
-        const chatInput = document.getElementById('chatInput');
-        chatInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') handleSend();
-        });
-
-        // --- 8. COMMAND PROCESSING ---
-        function handleSend() {
-            const txt = chatInput.value.trim();
-            if(!txt) return;
-            chatInput.value = '';
-            processCommand(txt);
-        }
-
-        function processCommand(txt) {
-            const lower = txt.toLowerCase();
-
-            // ADMIN COMMANDS
-            if (adminMode) {
-                if (lower === 'hands off') {
-                    handsOff = true;
-                    addUserMessage(txt);
-                    addSystemMessage("⚠ SYSTEM: AI Hands disengaged. Manual control only.");
-                    return;
-                }
-                if (lower === 'hands on') {
-                    handsOff = false;
-                    addUserMessage(txt);
-                    addSystemMessage("✓ SYSTEM: AI Hands re-engaged.");
-                    return;
-                }
-            }
-
-            // AI COMMANDS
-            if (txt.startsWith('/ai')) {
-                const prompt = txt.replace('/ai', '').trim();
-                if(!prompt) return;
-                addUserMessage(prompt); 
-                talkToClone(prompt);
-                return;
-            }
-
-            // MUSIC COMMANDS
-            const audio = document.getElementById('bg-music');
-            if (lower === 'play music') {
-                addUserMessage(txt);
-                if (audio) {
-                    audio.volume = 0.5;
-                    audio.play().then(()=>addAIMessage("🎵 Audio Stream: Active", true))
-                        .catch(e => addSystemMessage("Error: User interaction needed first."));
-                }
-                return;
-            }
-            if (lower === 'stop music') {
-                addUserMessage(txt);
-                if (audio) audio.pause();
-                return;
-            }
-
-            // STANDARD CHAT / BROADCAST
-            addUserMessage(txt);
-            publishMessage(txt);
-            addXP(15); // Reward for chatting
-        }
-
-        // --- 9. RENDERING FUNCTIONS ---
-        function addUserMessage(text) {
-            const container = document.getElementById('chat-container');
-            const time = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-            
-            const html = `
-                <div class="flex flex-row-reverse items-end gap-3 animate-fade-in group">
-                    <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-green-500 to-emerald-800 flex items-center justify-center border border-white/20 font-mono text-black text-sm font-bold shadow-lg transform group-hover:scale-105 transition">ME</div>
-                    <div class="flex flex-col items-end max-w-[80%]">
-                        <div class="p-4 rounded-2xl rounded-br-sm text-sm text-white shadow-[0_4px_20px_rgba(0,0,0,0.4)] bg-green-900/30 backdrop-blur-md border border-green-500/40">
-                            <p class="leading-relaxed font-light">${escapeHtml(text)}</p>
-                        </div>
-                        <span class="text-[10px] text-gray-600 mt-1 font-mono">${time} | SECURE</span>
-                    </div>
-                </div>`;
-            container.insertAdjacentHTML('beforeend', html);
-            scrollToBottom();
-        }
-
-        function addAIMessage(text, isAction) {
-            const container = document.getElementById('chat-container');
-            const cssClass = isAction ? 'border-cyan-500/50 bg-cyan-900/10 shadow-[0_0_15px_rgba(0,243,255,0.1)]' : 'border-gray-700/50 bg-black/40';
-            
-            const html = `
-                <div class="flex flex-row items-start gap-3 animate-fade-in">
-                    <div class="w-10 h-10 rounded-lg bg-black border border-cyan-500/50 flex items-center justify-center text-cyan-400 font-mono text-xs shadow-[0_0_10px_rgba(0,255,255,0.2)]">AI</div>
-                    <div class="flex-1 max-w-[85%]">
-                        <div class="p-4 rounded-2xl rounded-tl-sm text-sm text-gray-200 backdrop-blur-sm border ${cssClass}">
-                            <p class="leading-relaxed text-cyan-50/90">${text}</p>
-                        </div>
-                    </div>
-                </div>`;
-            container.insertAdjacentHTML('beforeend', html);
-            scrollToBottom();
-        }
-
-        function addSystemMessage(text) {
-            const container = document.getElementById('chat-container');
-            const html = `
-                <div class="my-2 flex justify-center">
-                    <div class="px-4 py-2 rounded-full text-xs font-bold text-cyan-300 bg-cyan-900/20 border border-cyan-500/30 shadow-[0_0_15px_rgba(0,255,255,0.1)] tracking-widest uppercase animate-fade-in">
-                        ⚠ ${text}
-                    </div>
-                </div>`;
-            container.insertAdjacentHTML('beforeend', html);
-            scrollToBottom();
-        }
-
-        function scrollToBottom() {
-            const c = document.getElementById('chat-container');
-            c.scrollTop = c.scrollHeight;
-        }
-
-        function addXP(amount) {
-            userStats.xp += amount;
-            // Level Up Logic
-            if (userStats.xp >= userStats.level * XP_PER_LEVEL) {
-                userStats.level++;
-                userStats.title = LEVELS[Math.min(userStats.level - 1, LEVELS.length - 1)];
-                addSystemMessage(`LEVEL UP! RANK: ${userStats.title}`);
-                // Visual flare
-                document.getElementById('xp-bar').classList.add('bg-white');
-                setTimeout(() => document.getElementById('xp-bar').classList.remove('bg-white'), 500);
-            }
-            updateStatsUI();
-            localStorage.setItem('termos_stats', JSON.stringify(userStats));
-        }
-
-        function loadStats() {
-            const saved = localStorage.getItem('termos_stats');
-            if(saved) userStats = JSON.parse(saved);
-        }
-
-        function escapeHtml(text) {
-            const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
-            return text.replace(/[&<>"']/g, function(m) { return map[m]; });
-        }
-
-        // --- 10. MQTT CONNECTION ---
-        function connectMQTT() {
-            try {
-                const clientId = "termos_lt_" + Math.random().toString(16).substr(2, 8);
-                mqttClient = mqtt.connect(MQTT_BROKER_URL, { 
-                    clientId: clientId, 
-                    keepalive: 60,
-                    clean: true
-                });
-
-                mqttClient.on('connect', () => {
-                    console.log("MQTT Connected");
-                    mqttClient.subscribe('termchat/messages');
-                    addSystemMessage("Uplink Established.");
-                });
-
-                mqttClient.on('message', (topic, msg) => {
-                    try {
-                        const data = JSON.parse(msg.toString());
-                        // Don't show own messages (handled by echo usually, but basic check here)
-                        if (data.user !== username) {
-                            // Inject remote message logic here if needed
-                            // For now, keeping it simple to local focus
-                        }
-                    } catch(e) {}
-                });
-                
-                mqttClient.on('error', (err) => {
-                    console.log("MQTT Error", err);
-                });
-            } catch (e) { console.log("MQTT Lib Missing"); }
-        }
-
-        function publishMessage(text) {
-            if (mqttClient && mqttClient.connected) {
-                const payload = JSON.stringify({ user: username, text: text, room: currentRoom });
-                mqttClient.publish('termchat/messages', payload);
-            }
-        }
-
-        // --- 11. MATRIX RAIN ENGINE ---
-        function initMatrix(overrideColor = '#0F0') {
-            const c = document.getElementById('matrix-canvas');
-            if(!c) return;
-            const ctx = c.getContext('2d');
-            
-            // Handle resize
-            const resize = () => {
-                c.width = window.innerWidth;
-                c.height = window.innerHeight;
-            };
-            window.addEventListener('resize', resize);
-            resize();
-
-            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789$@#%&';
-            const fontSize = 14;
-            const columns = c.width / fontSize;
-            const drops = Array(Math.floor(columns)).fill(1);
-
-            const rainColor = overrideColor;
-
-            function draw() {
-                // Semi-transparent black to create trail effect
-                ctx.fillStyle = 'rgba(0, 0, 0, 0.05)';
-                ctx.fillRect(0, 0, c.width, c.height);
-                
-                ctx.fillStyle = rainColor; 
-                ctx.font = fontSize + 'px monospace';
-                
-                for(let i=0; i<drops.length; i++) {
-                    const text = chars[Math.floor(Math.random() * chars.length)];
-                    ctx.fillText(text, i*fontSize, drops[i]*fontSize);
-
-                    if(drops[i]*fontSize > c.height && Math.random() > 0.975) {
-                        drops[i] = 0;
-                    }
-                    drops[i]++;
-                }
-            }
-            
-            setInterval(draw, 33);
-        }
-    </script>
-</body>
-</html>
+            if
