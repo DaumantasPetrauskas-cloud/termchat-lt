@@ -3,613 +3,726 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>MultiuniversOS: Masterpiece</title>
-    
-    <!-- TAILWIND CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        neon: {
-                            green: '#0f0',
-                            cyan: '#0ff',
-                            purple: '#d0f',
-                            red: '#f00',
-                            yellow: '#ff0'
-                        },
-                        glass: 'rgba(10, 10, 10, 0.85)'
-                    },
-                    fontFamily: {
-                        mono: ['"Courier New"', 'monospace'],
-                    }
-                }
-            }
-        }
-    </script>
+    <title>TermOS LT 🌌 - Multiverse OS</title>
+    <meta name="theme-color" content="#0f0">
+    <meta name="description" content="A revolutionary multiverse operating system with AI assistant, gamification, and extensible plugin architecture.">
 
     <style>
-        body { background-color: #000; color: #eee; overflow: hidden; user-select: none; }
-        
-        /* CRT EFFECTS */
-        .crt::before {
-            content: " "; display: block; position: absolute; top: 0; left: 0; bottom: 0; right: 0;
-            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
-            z-index: 50; background-size: 100% 2px, 3px 100%; pointer-events: none;
-        }
-        
-        /* DESKTOP */
-        #desktop { width: 100vw; height: calc(100vh - 40px); position: relative; z-index: 10; }
-        
-        /* WINDOWS */
-        .window {
-            position: absolute; background: #0a0a0a; border: 1px solid #333;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.8); display: flex; flex-direction: column;
-            transition: transform 0.1s;
-        }
-        .window.active { border-color: #0f0; box-shadow: 0 0 15px rgba(0, 255, 0, 0.2); z-index: 20; }
-        .window-header { background: #111; padding: 5px 10px; cursor: move; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #333; }
-        .window-title { font-size: 12px; font-weight: bold; color: #888; }
-        .window.active .window-title { color: #0f0; }
-        .window-content { flex: 1; overflow: auto; position: relative; padding: 10px; font-family: 'Courier New', monospace; font-size: 14px; }
-        
-        /* TERMINAL SPECIFIC */
-        .terminal-input { background: transparent; border: none; color: #0f0; width: 100%; outline: none; font-family: inherit; margin-top: 5px; }
-        .cmd-output { white-space: pre-wrap; margin-bottom: 5px; }
-        .cmd-line { display: flex; }
-        .prompt { color: #0f0; margin-right: 8px; }
-
-        /* TASKBAR */
-        #taskbar {
-            position: fixed; bottom: 0; width: 100%; height: 40px; background: #050505;
-            border-top: 1px solid #333; display: flex; align-items: center; padding: 0 10px;
-            z-index: 100; box-shadow: 0 -2px 10px rgba(0,0,0,0.5);
-        }
-        .taskbar-item {
-            background: #111; border: 1px solid #333; padding: 5px 15px; margin-right: 5px;
-            font-size: 12px; cursor: pointer; transition: all 0.2s; color: #888;
-            display: flex; align-items: center; gap: 5px;
-        }
-        .taskbar-item:hover { background: #222; }
-        .taskbar-item.active { background: #0f0; color: #000; font-weight: bold; }
-
-        /* BOOT SCREEN */
-        #boot-screen {
-            position: fixed; inset: 0; background: #000; z-index: 999; display: flex;
-            flex-direction: column; align-items: center; justify-content: center; font-family: monospace;
+        /* --- CSS VARIABLES & RESET --- */
+        :root {
+            --bg-color: #050505;
+            --term-green: #00ff41;
+            --term-dim: #008f11;
+            --term-bright: #ccffcc;
+            --scanline: rgba(0, 0, 0, 0.5);
+            --crt-flicker: rgba(18, 16, 16, 0.1);
+            --font-stack: 'Courier New', Courier, monospace;
         }
 
-        /* ICONS */
-        .icon-grid {
-            display: grid; grid-template-columns: repeat(auto-fill, 80px); gap: 15px; padding: 20px;
-        }
-        .desktop-icon {
-            display: flex; flex-direction: column; align-items: center; cursor: pointer;
-            color: #ccc; transition: color 0.2s; text-align: center;
-        }
-        .desktop-icon:hover { color: #0f0; text-shadow: 0 0 5px #0f0; }
-        .icon-box {
-            width: 48px; height: 48px; background: rgba(255,255,255,0.1); margin-bottom: 5px;
-            border: 1px solid #333; display: flex; align-items: center; justify-content: center; font-size: 24px;
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            scrollbar-width: thin;
+            scrollbar-color: var(--term-dim) var(--bg-color);
         }
 
-        /* SCROLLBAR */
-        ::-webkit-scrollbar { width: 8px; }
-        ::-webkit-scrollbar-track { background: #000; }
-        ::-webkit-scrollbar-thumb { background: #333; }
-        ::-webkit-scrollbar-thumb:hover { background: #0f0; }
+        body {
+            background-color: var(--bg-color);
+            color: var(--term-green);
+            font-family: var(--font-stack);
+            height: 100vh;
+            width: 100vw;
+            overflow: hidden;
+            font-size: 16px;
+            -webkit-font-smoothing: none;
+        }
+
+        /* --- CRT EFFECTS --- */
+        .crt-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        .scanlines {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: linear-gradient(
+                to bottom,
+                rgba(255,255,255,0),
+                rgba(255,255,255,0) 50%,
+                rgba(0,0,0,0.2) 50%,
+                rgba(0,0,0,0.2)
+            );
+            background-size: 100% 4px;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .crt-flicker {
+            animation: flicker 0.15s infinite;
+            pointer-events: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: var(--crt-flicker);
+            z-index: 9;
+            opacity: 0.1;
+        }
+
+        .crt-glow {
+            text-shadow: 0 0 5px var(--term-dim), 0 0 10px var(--term-green);
+        }
+
+        @keyframes flicker {
+            0% { opacity: 0.97; }
+            50% { opacity: 1; }
+            100% { opacity: 0.98; }
+        }
+
+        @keyframes boot-sequence {
+            0% { opacity: 0; transform: translateY(20px); }
+            100% { opacity: 1; transform: translateY(0); }
+        }
+
+        /* --- LAYOUT --- */
+        #app {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            padding: 20px;
+            position: relative;
+            z-index: 5;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid var(--term-dim);
+            padding-bottom: 10px;
+            margin-bottom: 10px;
+        }
+
+        .brand {
+            font-weight: bold;
+            font-size: 1.5rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .stats-bar {
+            display: flex;
+            gap: 15px;
+            font-size: 0.9rem;
+        }
+
+        .stat-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        /* --- MAIN OUTPUT AREA --- */
+        #terminal-output {
+            flex: 1;
+            overflow-y: auto;
+            margin-bottom: 10px;
+            padding-right: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .log-entry {
+            line-height: 1.4;
+            word-wrap: break-word;
+        }
+
+        .log-entry.system { color: var(--term-dim); font-style: italic; }
+        .log-entry.user { color: var(--term-bright); }
+        .log-entry.ai { color: var(--term-green); }
+        .log-entry.error { color: #ff3333; text-shadow: 0 0 5px red; }
+        
+        .timestamp {
+            opacity: 0.5;
+            margin-right: 8px;
+            font-size: 0.8em;
+        }
+
+        .avatar-ascii {
+            white-space: pre;
+            font-size: 10px;
+            line-height: 10px;
+            display: inline-block;
+            margin-right: 10px;
+            vertical-align: middle;
+        }
+
+        /* --- INPUT AREA --- */
+        #input-area {
+            display: flex;
+            align-items: center;
+            background: rgba(0, 20, 0, 0.8);
+            border: 1px solid var(--term-dim);
+            padding: 10px;
+        }
+
+        .prompt {
+            margin-right: 10px;
+            font-weight: bold;
+        }
+
+        #cmd-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: var(--term-green);
+            font-family: var(--font-stack);
+            font-size: 1.1rem;
+            outline: none;
+            text-transform: none;
+        }
+
+        /* --- MODALS & OVERLAYS --- */
+        .modal {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 80%;
+            max-width: 600px;
+            background: #000;
+            border: 2px solid var(--term-green);
+            padding: 20px;
+            z-index: 20;
+            display: none;
+            box-shadow: 0 0 20px var(--term-dim);
+        }
+
+        .modal.active { display: block; }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            border-bottom: 1px dashed var(--term-dim);
+            padding-bottom: 10px;
+            margin-bottom: 15px;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            color: var(--term-green);
+            font-family: var(--font-stack);
+            cursor: pointer;
+            font-size: 1.2rem;
+        }
+
+        /* --- APP SPECIFIC --- */
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+            gap: 15px;
+        }
+
+        .app-card {
+            border: 1px solid var(--term-dim);
+            padding: 15px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .app-card:hover {
+            background: var(--term-dim);
+            color: #000;
+        }
+
+        .music-visualizer {
+            display: flex;
+            justify-content: center;
+            align-items: flex-end;
+            height: 100px;
+            gap: 5px;
+        }
+
+        .bar {
+            width: 10px;
+            background: var(--term-green);
+            animation: bounce 1s infinite ease-in-out;
+        }
+        
+        .bar:nth-child(2) { animation-delay: 0.1s; }
+        .bar:nth-child(3) { animation-delay: 0.2s; }
+        .bar:nth-child(4) { animation-delay: 0.3s; }
+        .bar:nth-child(5) { animation-delay: 0.4s; }
+
+        @keyframes bounce {
+            0%, 100% { height: 10%; }
+            50% { height: 100%; }
+        }
+
+        /* --- MOBILE TWEAKS --- */
+        @media (max-width: 600px) {
+            header { flex-direction: column; align-items: flex-start; gap: 10px; }
+            .stats-bar { width: 100%; justify-content: space-between; }
+        }
     </style>
 </head>
-<body class="crt">
+<body>
 
-    <!-- BOOT SCREEN -->
-    <div id="boot-screen">
-        <div class="text-neon-green text-2xl mb-4 animate-pulse">MULTIVERSE OS <span class="text-xs text-gray-500">v3.0 MASTERPIECE</span></div>
-        <div id="boot-log" class="text-neon-cyan text-sm h-32 overflow-hidden w-80 text-left"></div>
-        <button onclick="bootSystem()" class="mt-6 border border-neon-green text-neon-green px-4 py-2 hover:bg-neon-green hover:text-black transition-all">INITIALIZE KERNEL</button>
+<div class="crt-container">
+    <div class="scanlines"></div>
+    <div class="crt-flicker"></div>
+
+    <div id="app">
+        <header class="crt-glow">
+            <div class="brand">TermOS LT 🌌</div>
+            <div class="stats-bar">
+                <div class="stat-item" id="stat-room">📍 LOBBY</div>
+                <div class="stat-item" id="stat-lvl">LVL: 1</div>
+                <div class="stat-item" id="stat-xp">XP: 0</div>
+                <div class="stat-item" id="stat-net">🌐 ONLINE</div>
+            </div>
+        </header>
+
+        <main id="terminal-output">
+            <!-- Logs go here -->
+        </main>
+
+        <section id="input-area">
+            <span class="prompt">guest@termos:~$</span>
+            <input type="text" id="cmd-input" autocomplete="off" spellcheck="false" autofocus>
+        </section>
     </div>
 
-    <!-- DESKTOP AREA -->
-    <div id="desktop">
-        <!-- Desktop Icons -->
-        <div class="icon-grid" id="desktop-icons">
-            <div class="desktop-icon" onclick="sys.openWindow('terminal')">
-                <div class="icon-box">>_</div>
-                <span>Terminal</span>
-            </div>
-            <div class="desktop-icon" onclick="sys.openWindow('monitor')">
-                <div class="icon-box">📊</div>
-                <span>Sys. Monitor</span>
-            </div>
-            <div class="desktop-icon" onclick="sys.openWindow('devtools')">
-                <div class="icon-box">🔧</div>
-                <span>DevTools</span>
-            </div>
-            <div class="desktop-icon" onclick="sys.openWindow('store')">
-                <div class="icon-box">📦</div>
-                <span>App Store</span>
-            </div>
-            <div class="desktop-icon" onclick="sys.openWindow('remote')">
-                <div class="icon-box">🌐</div>
-                <span>Remote Shell</span>
-            </div>
+    <!-- MODALS -->
+    <div id="modal-overlay" class="modal">
+        <div class="modal-header">
+            <span id="modal-title">SYSTEM MESSAGE</span>
+            <button class="close-btn" onclick="closeModal()">[X]</button>
         </div>
-        
-        <!-- Windows are injected here via JS -->
+        <div id="modal-content"></div>
     </div>
+</div>
 
-    <!-- TASKBAR -->
-    <div id="taskbar">
-        <button class="taskbar-item" onclick="sys.toggleStartMenu()">⊞ START</button>
-        <div id="active-tasks" class="flex-1 flex"></div>
-        <div class="text-neon-cyan text-xs mr-2" id="clock">00:00</div>
-        <div class="text-neon-green text-xs mr-2" id="net-status">ONLINE</div>
-    </div>
+<script>
+    /**
+     * TermOS LT - Core Logic
+     * Handles State, Gamification, AI Simulation, and DOM Manipulation
+     */
 
-    <!-- AUDIO ELEMENTS -->
-    <script>
-        // --- CORE: AUDIO SYSTEM ---
-        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    // --- STATE MANAGEMENT ---
+    const STATE = {
+        user: {
+            username: 'Guest_' + Math.floor(Math.random() * 9999),
+            level: 1,
+            xp: 0,
+            xpToNext: 100,
+            room: 'LOBBY',
+            avatar: 'newbie',
+            joinedAt: new Date().toISOString()
+        },
+        rooms: {
+            'LOBBY': { name: '🌌 Main Hub', desc: 'Central nexus of the multiverse.' },
+            'LIBRARY': { name: '📚 Library', desc: 'Knowledge repository with AI Librarian.' },
+            'WORKSHOP': { name: '🛠️ Workshop', desc: 'Code factory with AI Engineer.' },
+            'LOUNGE': { name: '🎭 Lounge', desc: 'Entertainment and games.' }
+        },
+        plugins: [],
+        isVoiceActive: false
+    };
+
+    // --- AVATARS ---
+    const AVATARS = {
+        'newbie': `   (o.o)   `,
+        'hacker': `  /\\_/\\  \n ( o.o ) \n  > ^ <`,
+        'wizard': `    /\\    \n   /  \\   \n   \\__/   \n   o_o`,
+        'ninja': `   ◢◤   \n  o_o   \n  /|\\   \n  / \\`
+    };
+
+    // --- DOM ELEMENTS ---
+    const terminal = document.getElementById('terminal-output');
+    const input = document.getElementById('cmd-input');
+    const modal = document.getElementById('modal-overlay');
+    const modalTitle = document.getElementById('modal-title');
+    const modalContent = document.getElementById('modal-content');
+    
+    // Stats elements
+    const elRoom = document.getElementById('stat-room');
+    const elLvl = document.getElementById('stat-lvl');
+    const elXp = document.getElementById('stat-xp');
+
+    // --- INITIALIZATION ---
+    window.onload = () => {
+        loadState();
+        bootSequence();
+        input.focus();
         
-        const Sounds = {
-            play: (type) => {
-                if(audioCtx.state === 'suspended') audioCtx.resume();
-                const osc = audioCtx.createOscillator();
-                const gain = audioCtx.createGain();
-                osc.connect(gain);
-                gain.connect(audioCtx.destination);
+        // Global event listeners
+        input.addEventListener('keydown', handleInput);
+        document.addEventListener('click', () => input.focus());
+    };
 
-                if(type === 'startup') {
-                    osc.type = 'sawtooth';
-                    osc.frequency.setValueAtTime(110, audioCtx.currentTime);
-                    osc.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.5);
-                    gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
-                    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 1.0);
-                    osc.start(); osc.stop(audioCtx.currentTime + 1.0);
-                } else if (type === 'click') {
-                    osc.type = 'square';
-                    osc.frequency.setValueAtTime(800, audioCtx.currentTime);
-                    gain.gain.setValueAtTime(0.02, audioCtx.currentTime);
-                    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.05);
-                    osc.start(); osc.stop(audioCtx.currentTime + 0.05);
-                } else if (type === 'error') {
-                    osc.type = 'sawtooth';
-                    osc.frequency.setValueAtTime(150, audioCtx.currentTime);
-                    gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
-                    gain.gain.linearRampToValueAtTime(0.001, audioCtx.currentTime + 0.3);
-                    osc.start(); osc.stop(audioCtx.currentTime + 0.3);
-                } else if (type === 'alert') {
-                    osc.type = 'sine';
-                    osc.frequency.setValueAtTime(1200, audioCtx.currentTime);
-                    gain.gain.setValueAtTime(0.05, audioCtx.currentTime);
-                    osc.start(); osc.stop(audioCtx.currentTime + 0.1);
-                }
-            }
-        };
+    function bootSequence() {
+        const logs = [
+            "Initializing TermOS Kernel v4.2.0...",
+            "Loading Vector Database...",
+            "Connecting to Multiverse Relay...",
+            "Mounting Plugin Docker Container...",
+            "System Ready."
+        ];
 
-        // --- CORE: FILE SYSTEM (Mocked in LocalStorage) ---
-        const FS = {
-            data: JSON.parse(localStorage.getItem('multiverse_fs') || '{"root": {"type": "dir", "content": {"readme.txt": {"type": "file", "content": "Welcome to MultiuniversOS."}}}}'),
-            save: () => localStorage.setItem('multiverse_fs', JSON.stringify(FS.data)),
-            resolvePath: (path) => { /* Simplified path resolution */ return FS.data.root; },
-            ls: (dir) => {
-                return Object.keys(dir.content).map(k => `${dir.content[k].type === 'dir' ? '+' : '-'} ${k}`).join('\n');
-            },
-            mkdir: (name, parent) => {
-                parent.content[name] = { type: 'dir', content: {} };
-                FS.save();
-            },
-            touch: (name, parent) => {
-                parent.content[name] = { type: 'file', content: '' };
-                FS.save();
-            },
-            write: (name, content, parent) => {
-                if(parent.content[name]) parent.content[name].content = content;
-                FS.save();
-            },
-            read: (name, parent) => {
-                return parent.content[name] ? parent.content[name].content : 'File not found';
-            },
-            rm: (name, parent) => {
-                delete parent.content[name];
-                FS.save();
-            }
-        };
-
-        // --- CORE: WINDOW MANAGER ---
-        class WindowSystem {
-            constructor() {
-                this.windows = {};
-                this.zIndex = 100;
-                this.activeWindow = null;
-                this.desktop = document.getElementById('desktop');
-                this.taskbar = document.getElementById('active-tasks');
-            }
-
-            openWindow(id, title, contentHTML, width = 400, height = 300) {
-                Sounds.play('click');
-                if (this.windows[id]) {
-                    this.focusWindow(id);
-                    return;
-                }
-
-                const win = document.createElement('div');
-                win.className = 'window active';
-                win.id = `win-${id}`;
-                win.style.width = width + 'px';
-                win.style.height = height + 'px';
-                win.style.left = (50 + Math.random() * 50) + 'px';
-                win.style.top = (50 + Math.random() * 50) + 'px';
-                win.style.zIndex = ++this.zIndex;
-
-                win.innerHTML = `
-                    <div class="window-header" onmousedown="sys.startDrag(event, '${id}')">
-                        <span class="window-title">${title}</span>
-                        <div>
-                            <button onclick="sys.minimizeWindow('${id}')" class="text-gray-500 hover:text-white mx-1">_</button>
-                            <button onclick="sys.closeWindow('${id}')" class="text-red-500 hover:text-red-400 font-bold mx-1">×</button>
-                        </div>
-                    </div>
-                    <div class="window-content">${contentHTML}</div>
-                `;
-
-                this.desktop.appendChild(win);
-                this.windows[id] = win;
-                this.addTaskbarItem(id, title);
-                this.focusWindow(id);
-            }
-
-            focusWindow(id) {
-                if (!this.windows[id]) return;
-                Object.values(this.windows).forEach(w => w.classList.remove('active'));
-                this.windows[id].classList.add('active');
-                this.windows[id].style.zIndex = ++this.zIndex;
-                this.windows[id].style.display = 'flex';
-                this.updateTaskbar(id, true);
-            }
-
-            closeWindow(id) {
-                if (this.windows[id]) {
-                    this.windows[id].remove();
-                    delete this.windows[id];
-                    document.getElementById(`task-${id}`)?.remove();
-                }
-            }
-
-            minimizeWindow(id) {
-                if (this.windows[id]) {
-                    this.windows[id].style.display = 'none';
-                    this.updateTaskbar(id, false);
-                }
-            }
-
-            addTaskbarItem(id, title) {
-                const item = document.createElement('div');
-                item.className = 'taskbar-item active';
-                item.id = `task-${id}`;
-                item.innerHTML = `<span>${title}</span>`;
-                item.onclick = () => {
-                    if (this.windows[id].style.display === 'none') this.focusWindow(id);
-                    else if (this.activeWindow === id) this.minimizeWindow(id);
-                    else this.focusWindow(id);
-                };
-                this.taskbar.appendChild(item);
-            }
-
-            updateTaskbar(id, isActive) {
-                const item = document.getElementById(`task-${id}`);
-                if (item) {
-                    if (isActive) item.classList.add('active');
-                    else item.classList.remove('active');
-                }
-            }
-
-            startDrag(e, id) {
-                const win = this.windows[id];
-                let shiftX = e.clientX - win.getBoundingClientRect().left;
-                let shiftY = e.clientY - win.getBoundingClientRect().top;
-
-                function moveAt(pageX, pageY) {
-                    win.style.left = pageX - shiftX + 'px';
-                    win.style.top = pageY - shiftY + 'px';
-                }
-
-                function onMouseMove(event) { moveAt(event.pageX, event.pageY); }
-
-                document.addEventListener('mousemove', onMouseMove);
-
-                document.onmouseup = function() {
-                    document.removeEventListener('mousemove', onMouseMove);
-                    document.onmouseup = null;
-                };
-            }
-            
-            // --- FEATURE: BOOT SEQUENCE ---
-            boot() {
-                const log = document.getElementById('boot-log');
-                const lines = [
-                    "Initializing Kernel...",
-                    "Loading Filesystem (IndexedDB)...",
-                    "Mounting Virtual Drive...",
-                    "Starting Network Daemon...",
-                    "Checking Immune System...",
-                    "OK: Self-Healing Protocol Active.",
-                    "OK: Evolution Engine Ready.",
-                    "SYSTEM ONLINE."
-                ];
-                let i = 0;
-                const interval = setInterval(() => {
-                    if (i >= lines.length) {
-                        clearInterval(interval);
-                        document.getElementById('boot-screen').style.display = 'none';
-                        this.openWindow('terminal', 'TERMINAL', this.getTerminalHTML(), 600, 400);
-                        this.openWindow('monitor', 'SYSTEM MONITOR', this.getMonitorHTML(), 300, 200);
-                        Sounds.play('startup');
-                        return;
-                    }
-                    log.innerHTML += `<div>> ${lines[i]}</div>`;
-                    log.scrollTop = log.scrollHeight;
-                    i++;
-                }, 500);
-            }
-
-            // --- HTML GENERATORS ---
-            getTerminalHTML() {
-                return `
-                    <div id="term-output" class="cmd-output text-neon-green"></div>
-                    <div class="cmd-line">
-                        <span class="prompt">root@multiverse:~$</span>
-                        <input type="text" id="term-input" class="terminal-input" autocomplete="off" onkeydown="sys.handleCommand(event, this)">
-                    </div>
-                `;
-            }
-
-            getMonitorHTML() {
-                return `
-                    <div class="space-y-2 text-xs">
-                        <div><span class="text-gray-400">CPU:</span> <div class="w-full bg-gray-800 h-2"><div id="cpu-bar" class="bg-neon-red h-2" style="width:12%"></div></div></div>
-                        <div><span class="text-gray-400">MEM:</span> <div class="w-full bg-gray-800 h-2"><div id="mem-bar" class="bg-neon-purple h-2" style="width:45%"></div></div></div>
-                        <div class="flex justify-between"><span>STATUS:</span> <span class="text-neon-green animate-pulse">ORGANIC</span></div>
-                        <div class="flex justify-between"><span>NET:</span> <span class="text-neon-cyan">SECURE (TLS 1.3)</span></div>
-                    </div>
-                `;
-            }
-
-            getDevToolsHTML() {
-                return `
-                    <div class="flex flex-col h-full">
-                        <div class="flex border-b border-gray-700 mb-2">
-                            <button class="px-3 py-1 bg-gray-800 text-white text-xs" onclick="document.getElementById('tab-regex').style.display='block';document.getElementById('tab-json').style.display='none';">REGEX</button>
-                            <button class="px-3 py-1 text-gray-400 text-xs hover:text-white" onclick="document.getElementById('tab-regex').style.display='none';document.getElementById('tab-json').style.display='block';">JSON</button>
-                        </div>
-                        <div id="tab-regex">
-                            <input id="regex-pattern" placeholder="Pattern (e.g. \\d+)" class="w-full bg-black border border-gray-700 p-1 text-neon-cyan text-xs mb-2">
-                            <input id="regex-text" placeholder="Test String" class="w-full bg-black border border-gray-700 p-1 text-white text-xs" oninput="sys.testRegex()">
-                            <div id="regex-result" class="text-neon-green text-xs mt-2"></div>
-                        </div>
-                        <div id="tab-json" style="display:none;">
-                            <textarea id="json-input" class="w-full h-32 bg-black border border-gray-700 p-1 text-white text-xs mb-2" placeholder='{"ugly":"json"}'></textarea>
-                            <button onclick="sys.formatJSON()" class="w-full bg-neon-cyan text-black text-xs font-bold">FORMAT</button>
-                            <pre id="json-output" class="text-neon-green text-xs mt-2 overflow-auto h-20"></pre>
-                        </div>
-                    </div>
-                `;
-            }
-            
-            getStoreHTML() {
-                return `
-                    <div class="grid grid-cols-2 gap-2 text-center">
-                        <div class="border border-gray-700 p-2 cursor-pointer hover:bg-gray-800" onclick="alert('Installing P2P Module...')">
-                            <div class="text-2xl mb-1">🌐</div>
-                            <div class="text-xs">P2P Tunnel</div>
-                        </div>
-                        <div class="border border-gray-700 p-2 cursor-pointer hover:bg-gray-800" onclick="alert('Installing Matrix Rain...')">
-                            <div class="text-2xl mb-1">🟢</div>
-                            <div class="text-xs">Matrix Rain</div>
-                        </div>
-                        <div class="border border-gray-700 p-2 cursor-pointer hover:bg-gray-800" onclick="alert('Installing Theme...')">
-                            <div class="text-2xl mb-1">🎨</div>
-                            <div class="text-xs">Cyberpunk Theme</div>
-                        </div>
-                    </div>
-                `;
-            }
-
-            getRemoteHTML() {
-                return `
-                    <div class="text-xs">
-                        <div class="mb-2 text-gray-400">REMOTE SHELL: RENDER_DEPLOY_01</div>
-                        <div id="remote-out" class="text-white mb-2">Connected to root@192.168.1.55</div>
-                        <input type="text" class="w-full bg-black border border-gray-700 p-1 text-white font-mono" placeholder="$ " onkeydown="if(event.key==='Enter'){ this.value=''; document.getElementById('remote-out').innerHTML+= '<div>> '+this.value+'</div>';}">
-                    </div>
-                `;
-            }
-
-            // --- TERMINAL LOGIC ---
-            handleCommand(e, input) {
-                if (e.key === 'Enter') {
-                    const val = input.value.trim();
-                    const out = document.getElementById('term-output');
-                    out.innerHTML += `<div><span class="prompt">root@multiverse:~$</span> ${escapeHtml(val)}</div>`;
-                    
-                    const parts = val.split(' ');
-                    const cmd = parts[0].toLowerCase();
-                    const args = parts.slice(1);
-
-                    let response = '';
-
-                    // Commands
-                    try {
-                        const cwd = FS.data.root; // simplified to root for demo
-
-                        switch(cmd) {
-                            case 'help':
-                                response = "Available commands: help, ls, mkdir, touch, cat, nano, rm, clear, mutate, scan";
-                                break;
-                            case 'ls':
-                                response = FS.ls(cwd);
-                                break;
-                            case 'mkdir':
-                                if(args[0]) { FS.mkdir(args[0], cwd); response = `Directory '${args[0]}' created.`; }
-                                else response = "Usage: mkdir [name]";
-                                break;
-                            case 'touch':
-                                if(args[0]) { FS.touch(args[0], cwd); response = `File '${args[0]}' created.`; }
-                                else response = "Usage: touch [name]";
-                                break;
-                            case 'cat':
-                                if(args[0]) response = FS.read(args[0], cwd);
-                                else response = "Usage: cat [filename]";
-                                break;
-                            case 'nano':
-                                if(args[0]) {
-                                    response = `[EDITOR] Opening ${args[0]}... (Mock editor)`;
-                                    setTimeout(() => alert(`Editing ${args[0]}\n(Currently read-only in web version)`), 100);
-                                } else response = "Usage: nano [filename]";
-                                break;
-                            case 'rm':
-                                if(args[0]) { FS.rm(args[0], cwd); response = `Removed '${args[0]}'.`; }
-                                else response = "Usage: rm [filename]";
-                                break;
-                            case 'clear':
-                                out.innerHTML = ''; response = null;
-                                break;
-                            case 'scan':
-                                response = "Scanning LAN...\n[1] 192.168.1.5 - USER_DAUMANTAS\n[2] 192.168.1.8 - PRINTER_HP\nScan Complete.";
-                                break;
-                            case 'mutate':
-                                // THE EVOLUTION FEATURE
-                                response = `> INITIATING EVOLUTION PROTOCOL...\n> ANALYZING REQUEST: "${args.join(' ')}"\n> CONTACTING ARCHITECT (GROQ)...`;
-                                this.simulateEvolution(args.join(' '));
-                                break;
-                            default:
-                                response = `Command not found: ${cmd}`;
-                        }
-                    } catch(err) {
-                        response = `Error: ${err.message}`;
-                    }
-
-                    if (response) out.innerHTML += `<div class="text-white mb-2">${response.replace(/\n/g, '<br>')}</div>`;
-                    input.value = '';
-                    input.scrollIntoView();
-                }
-            }
-
-            simulateEvolution(request) {
-                const out = document.getElementById('term-output');
-                // Visual feedback loop
-                let steps = ["Patching Kernel...", "Rewriting CSS...", "Optimizing Neural Net...", "Deploying Mutation..."];
-                let i = 0;
-                const interval = setInterval(() => {
-                    out.innerHTML += `<div class="text-neon-purple">> ${steps[i]}</div>`;
-                    out.scrollTop = out.scrollHeight;
-                    i++;
-                    if(i >= steps.length) {
-                        clearInterval(interval);
-                        out.innerHTML += `<div class="text-neon-green font-bold">>> EVOLUTION COMPLETE. SYSTEM UPGRADED.</div>`;
-                        Sounds.play('startup'); // Feedback sound
-                        
-                        // Visual mutation: Change background color temporarily
-                        document.body.style.backgroundColor = '#0f0030';
-                        setTimeout(() => document.body.style.backgroundColor = '#000', 500);
-                    }
-                }, 800);
-            }
-
-            // --- DEVTOOLS LOGIC ---
-            testRegex() {
-                const pattern = document.getElementById('regex-pattern').value;
-                const text = document.getElementById('regex-text').value;
-                const resDiv = document.getElementById('regex-result');
-                try {
-                    const regex = new RegExp(pattern);
-                    const matches = text.match(regex);
-                    resDiv.innerHTML = matches ? `<span class="text-neon-green">Match: ${matches.join(', ')}</span>` : 'No Match';
-                } catch(e) {
-                    resDiv.innerHTML = `<span class="text-neon-red">Invalid Regex</span>`;
-                }
-            }
-
-            formatJSON() {
-                try {
-                    const raw = document.getElementById('json-input').value;
-                    const obj = JSON.parse(raw);
-                    document.getElementById('json-output').innerHTML = JSON.stringify(obj, null, 2);
-                } catch(e) {
-                    document.getElementById('json-output').innerHTML = "Invalid JSON";
-                }
-            }
-        }
-
-        function escapeHtml(text) {
-            if (!text) return text;
-            return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-        }
-
-        // --- INITIALIZATION ---
-        const sys = new WindowSystem();
-
-        function bootSystem() {
-            Sounds.play('click');
-            sys.boot();
-        }
-
-        // Clock
-        setInterval(() => {
-            document.getElementById('clock').innerText = new Date().toLocaleTimeString();
-        }, 1000);
-
-        // Mock System Monitor Loop
-        setInterval(() => {
-            if(document.getElementById('cpu-bar')) {
-                document.getElementById('cpu-bar').style.width = Math.floor(Math.random() * 30 + 10) + '%';
-                document.getElementById('mem-bar').style.width = Math.floor(Math.random() * 20 + 40) + '%';
-            }
-        }, 2000);
-
-        // --- VOICE COMMAND (Web Speech API) ---
-        if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-            const recognition = new SpeechRecognition();
-            recognition.continuous = false;
-            recognition.lang = 'en-US';
-
-            // Add Mic Button
-            const micBtn = document.createElement('button');
-            micBtn.className = 'taskbar-item';
-            micBtn.innerHTML = '🎙️';
-            micBtn.onclick = () => { Sounds.play('click'); recognition.start(); };
-            document.getElementById('taskbar').insertBefore(micBtn, document.getElementById('clock'));
-
-            recognition.onresult = (event) => {
-                const command = event.results[0][0].transcript.toLowerCase();
-                alert(`Voice Command: "${command}"`);
-                
-                if(command.includes('terminal')) sys.openWindow('terminal', 'TERMINAL', sys.getTerminalHTML());
-                if(command.includes('store')) sys.openWindow('store', 'APP STORE', sys.getStoreHTML());
-                if(command.includes('monitor')) sys.openWindow('monitor', 'SYSTEM MONITOR', sys.getMonitorHTML());
-                if(command.includes('scan')) sys.simulateEvolution("Voice Initiated Scan");
-            };
-        }
-
-        // --- IMMUNE SYSTEM (Global Error Handler) ---
-        window.onerror = function(message, source, lineno, colno, error) {
-            console.error("CRITICAL ERROR DETECTED:", error);
-            // Try to log to terminal if it exists
-            const termOut = document.getElementById('term-output');
-            if(termOut) {
-                termOut.innerHTML += `<div class="text-neon-red">[IMMUNE SYS] Caught exception in ${source}:${lineno} - ${message}</div>`;
-                termOut.scrollTop = termOut.scrollHeight;
-            }
-            Sounds.play('error');
-            // Attempt self-healing (Reload)
+        let delay = 0;
+        logs.forEach((log, index) => {
             setTimeout(() => {
-                if(confirm("System instability detected. Initiate Reboot?")) location.reload();
-            }, 2000);
-        };
+                printLog(log, 'system');
+                if(index === logs.length - 1) {
+                    printLog(`Welcome back, ${STATE.user.username}. Type /help for commands.`, 'ai');
+                    updateStatsUI();
+                }
+            }, delay);
+            delay += 600;
+        });
+    }
 
-    </script>
+    // --- CORE TERMINAL FUNCTIONS ---
+
+    function handleInput(e) {
+        if (e.key === 'Enter') {
+            const cmd = input.value.trim();
+            input.value = '';
+            
+            if (cmd) {
+                printLog(`${cmd}`, 'user', true); // true = show avatar
+                processCommand(cmd);
+                addXP(1); // XP for chatting
+            }
+        }
+    }
+
+    function printLog(text, type = 'system', showAvatar = false) {
+        const div = document.createElement('div');
+        div.className = `log-entry ${type} crt-glow`;
+        
+        const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        
+        let content = `<span class="timestamp">[${time}]</span>`;
+        
+        if (showAvatar) {
+            const art = AVATARS[STATE.user.avatar] || AVATARS['newbie'];
+            content += `<span class="avatar-ascii">${art}</span> `;
+        }
+
+        content += text;
+        div.innerHTML = content;
+        
+        terminal.appendChild(div);
+        scrollToBottom();
+    }
+
+    function scrollToBottom() {
+        terminal.scrollTop = terminal.scrollHeight;
+    }
+
+    function closeModal() {
+        modal.classList.remove('active');
+        input.focus();
+    }
+
+    function showModal(title, htmlContent) {
+        modalTitle.innerText = title;
+        modalContent.innerHTML = htmlContent;
+        modal.classList.add('active');
+    }
+
+    // --- COMMAND PROCESSOR ---
+
+    function processCommand(raw) {
+        const parts = raw.split(' ');
+        const cmd = parts[0].toLowerCase();
+        const args = parts.slice(1);
+
+        switch(cmd) {
+            case '/help':
+                printLog(`
+                AVAILABLE COMMANDS:
+                -------------------
+                /help     - Show this menu
+                /clear    - Clear terminal
+                /stats    - View detailed stats
+                /avatar   - Change avatar (Lvl 3+)
+                /room     - Travel to a new room
+                /share    - Create invite link
+                /apps     - Open application menu
+                /voice    - Toggle Voice Interface (Sim)
+                
+                AI COMMANDS:
+                -----------
+                "Play music"
+                "Tell me a joke"
+                "Check system status"
+                "Create a plugin"
+                `, 'system');
+                break;
+
+            case '/clear':
+                terminal.innerHTML = '';
+                break;
+
+            case '/stats':
+                const progress = Math.floor((STATE.user.xp / STATE.user.xpToNext) * 100);
+                printLog(`USER PROFILE: ${STATE.user.username}
+LEVEL: ${STATE.user.level}
+XP: ${STATE.user.xp} / ${STATE.user.xpToNext} [${progress}%]
+ROOM: ${STATE.user.room}
+AVATAR: ${STATE.user.avatar}`, 'system');
+                break;
+
+            case '/room':
+                if (args.length === 0) {
+                    printLog("Usage: /room [name]. Available: LOBBY, LIBRARY, WORKSHOP, LOUNGE", 'system');
+                } else {
+                    changeRoom(args[0].toUpperCase());
+                }
+                break;
+
+            case '/share':
+                const shareLink = `${window.location.origin}?room=${STATE.user.room}&ref=${STATE.user.username}`;
+                showModal("🔗 Share Multiverse Link", `
+                    <p>Invite friends to <strong>${STATE.user.room}</strong>:</p>
+                    <input type="text" value="${shareLink}" style="width:100%; background:#111; color:#0f0; border:1px solid #0f0; padding:5px;" readonly>
+                    <br><br>
+                    <button class="app-card" style="width:100%" onclick="addXP(25); closeModal()">(+25 XP) Link Copied!</button>
+                `);
+                break;
+
+            case '/apps':
+                openAppsMenu();
+                break;
+            
+            case '/avatar':
+                if (STATE.user.level < 3) {
+                    printLog("Avatar customization unlocked at Level 3 (Hacker).", 'error');
+                } else {
+                    // Simplified avatar selection for demo
+                    STATE.user.avatar = 'hacker';
+                    printLog("Avatar updated to: HACKER", 'system');
+                    saveState();
+                }
+                break;
+
+            case '/voice':
+                STATE.isVoiceActive = !STATE.isVoiceActive;
+                if(STATE.isVoiceActive) {
+                    printLog("Microphone Active. Listening... (Say 'Stop' to end)", 'system');
+                    // Simulate voice input
+                    setTimeout(() => aiResponse("Voice input detected: 'Play some jazz'"), 3000);
+                } else {
+                    printLog("Voice Interface deactivated.", 'system');
+                }
+                break;
+
+            default:
+                // If not a command, send to AI
+                aiResponse(raw);
+        }
+    }
+
+    // --- AI LOGIC (TERMAI) ---
+
+    function aiResponse(userText) {
+        // Typing effect delay
+        const delay = 500 + Math.random() * 1000;
+        
+        setTimeout(() => {
+            const lower = userText.toLowerCase();
+            let response = "";
+            let action = null;
+
+            // Simple Keyword Matching for "Agentic" behavior
+            if (lower.includes('hello') || lower.includes('hi')) {
+                response = `Greetings, ${STATE.user.username}. Systems operational.`;
+            } 
+            else if (lower.includes('music') || lower.includes('play')) {
+                response = "Initializing Audio Synthesizer... Playing: Cyberpunk Lo-Fi.";
+                action = 'music';
+            }
+            else if (lower.includes('joke')) {
+                response = "Why do Java developers wear glasses? Because they don't C#.";
+            }
+            else if (lower.includes('status') || lower.includes('diagnostic')) {
+                response = `System Integrity: 98%. Memory: 128MB/Free. Connection: Secure. XP: ${STATE.user.xp}.`;
+            }
+            else if (lower.includes('plugin') || lower.includes('code')) {
+                response = "Accessing Docker Container... Downloading dependencies.";
+                action = 'code';
+            }
+            else if (lower.includes('room')) {
+                response = "You can change rooms using the /room command.";
+            }
+            else {
+                response = `I processed "${userText}". Vector database updated. How else can I assist?`;
+            }
+
+            printLog(response, 'ai');
+            
+            // Execute "Agent Actions"
+            if (action === 'music') {
+                showModal("🎵 Music Player", `
+                    <div style="text-align:center">
+                        <h3>Cyberpunk Lo-Fi</h3>
+                        <div class="music-visualizer">
+                            <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
+                        </div>
+                        <p style="margin-top:10px">[ Playing... ]</p>
+                    </div>
+                `);
+                addXP(5);
+            } else if (action === 'code') {
+                showModal("🐳 Plugin Editor", `
+                    <textarea style="width:100%; height:150px; background:#000; color:#0f0; font-family:monospace; border:1px solid #0f0;">
+def on_trigger(data):
+    print("Plugin executed!")
+    return {"status": "success"}</textarea>
+                    <br><br>
+                    <button class="app-card" onclick="addXP(50); closeModal()">Compile & Run (Docker)</button>
+                `);
+            }
+
+        }, delay);
+    }
+
+    // --- APPS SYSTEM ---
+
+    function openAppsMenu() {
+        const appsHtml = `
+            <div class="grid-container">
+                <div class="app-card" onclick="launchApp('music')">
+                    <div>🎵</div>
+                    <div>Audio</div>
+                </div>
+                <div class="app-card" onclick="launchApp('code')">
+                    <div>💻</div>
+                    <div>IDE</div>
+                </div>
+                <div class="app-card" onclick="launchApp('game')">
+                    <div>🎮</div>
+                    <div>Game</div>
+                </div>
+                <div class="app-card" onclick="launchApp('files')">
+                    <div>📂</div>
+                    <div>Files</div>
+                </div>
+            </div>
+        `;
+        showModal("🔌 Installed Apps", appsHtml);
+    }
+
+    function launchApp(type) {
+        closeModal();
+        addXP(10);
+        if (type === 'game') {
+            showModal("🎮 Space Invaders", `
+                <div style="text-align:center; padding:20px;">
+                    <p>GAME LOADING...</p>
+                    <p>Use Arrow Keys to move</p>
+                    <canvas id="game-canvas" width="200" height="100" style="border:1px solid #0f0; background:#000; display:block; margin:0 auto;"></canvas>
+                    <script>
+                        // Micro game script for demo
+                        const c = document.getElementById('game-canvas');
+                        const ctx = c.getContext('2d');
+                        let x = 100;
+                        function loop() {
+                            ctx.clearRect(0,0,200,100);
+                            ctx.fillStyle = '#0f0';
+                            ctx.fillRect(x, 80, 10, 10);
+                            x = (x + 2) % 200;
+                            requestAnimationFrame(loop);
+                        }
+                        loop();
+                    <\/script>
+                </div>
+            `);
+        } else {
+            printLog(`Launching ${type.toUpperCase()} application...`, 'system');
+        }
+    }
+
+    // --- GAMIFICATION ---
+
+    function changeRoom(roomName) {
+        if (STATE.rooms[roomName]) {
+            STATE.user.room = roomName;
+            printLog(`Travelling to ${STATE.rooms[roomName].name}...`, 'system');
+            setTimeout(() => {
+                printLog(`Arrived at ${roomName}. ${STATE.rooms[roomName].desc}`, 'system');
+                updateStatsUI();
+                // Simulate AI personality change
+                const greetings = {
+                    'LIBRARY': "Shh... Welcome to the archive.",
+                    'WORKSHOP': "Safety goggles on. Let's build.",
+                    'LOUNGE': "Hey! Relax and have fun."
+                };
+                if(greetings[roomName]) printLog(greetings[roomName], 'ai');
+            }, 800);
+            saveState();
+        } else {
+            printLog("Error: Room not found in multiverse.", 'error');
+        }
+    }
+
+    function addXP(amount) {
+        STATE.user.xp += amount;
+        
+        // Level Up Logic
+        if (STATE.user.xp >= STATE.user.xpToNext) {
+            STATE.user.level++;
+            STATE.user.xp -= STATE.user.xpToNext;
+            STATE.user.xpToNext = Math.floor(STATE.user.xpToNext * 1.5);
+            
+            printLog(`*** LEVEL UP! You are now Level ${STATE.user.level} ***`, 'system');
+            
+            // Unlock Avatar at level 3
+            if (STATE.user.level === 3) {
+                STATE.user.avatar = 'hacker';
+                printLog(`ACHIEVEMENT: Hacker Avatar Unlocked!`, 'ai');
+            }
+        }
+        
+        updateStatsUI();
+        saveState();
+    }
+
+    function updateStatsUI() {
+        elRoom.innerText = `📍 ${STATE.user.room}`;
+        elLvl.innerText = `LVL: ${STATE.user.level}`;
+        elXp.innerText = `XP: ${STATE.user.xp}`;
+    }
+
+    // --- PERSISTENCE ---
+
+    function saveState() {
+        localStorage.setItem('termos_state', JSON.stringify(STATE.user));
+    }
+
+    function loadState() {
+        const saved = localStorage.getItem('termos_state');
+        if (saved) {
+            const parsed = JSON.parse(saved);
+            // Merge saved state to prevent breaking if new fields added
+            STATE.user = { ...STATE.user, ...parsed };
+        }
+    }
+
+</script>
 </body>
 </html>
